@@ -19,7 +19,7 @@ netnsName         veth    peer    peerInNetns    netnsID
      |----veth385ac3bb    docker0    eth3    2
 
 ----------------------------------------------------
-unused veth pair without
+unused veth pairs
 veth            peer        netnsID
 veth31bc095b    enp5s0      1
 veth12d98148    wlp4s0      1
