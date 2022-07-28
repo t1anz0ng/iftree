@@ -14,7 +14,9 @@ func GenerateGraph(m map[string][]pkg.Pair) (string, error) {
 	root.SetName("G")
 
 	for bridge, v := range m {
-		root.AddNode("G", bridge, nil)
+		root.AddNode("G", bridge, map[string]string{
+			"nodesep": "4.0",
+		})
 		m := make(map[string]*gographviz.SubGraph)
 		for i, vp := range v {
 			// group by vp.NetNsName
@@ -24,14 +26,17 @@ func GenerateGraph(m map[string][]pkg.Pair) (string, error) {
 				m[vp.NetNsName] = sub
 				_ = root.AddSubGraph("G", sub.Name,
 					map[string]string{
-						"label": vp.NetNsName,
-						"style": "filled",
+						"label":   "NetNS: " + vp.NetNsName,
+						"style":   "filled",
+						"nodesep": "4.0",
 					})
 			}
 			if err := root.AddNode("G", vp.Veth, nil); err != nil {
 				return "", err
 			}
-			if err := root.AddEdge(vp.Veth, bridge, false, nil); err != nil {
+			if err := root.AddEdge(vp.Veth, bridge, false, map[string]string{
+				"color": "black",
+			}); err != nil {
 				return "", err
 			}
 			vethInNsName := fmt.Sprintf("%s_%d", vp.PeerInNetns, i)
@@ -40,7 +45,11 @@ func GenerateGraph(m map[string][]pkg.Pair) (string, error) {
 			}); err != nil {
 				return "", err
 			}
-			if err := root.AddEdge(vp.Veth, vethInNsName, false, nil); err != nil {
+			if err := root.AddEdge(vp.Veth, vethInNsName, false, map[string]string{
+				"label":     vp.Peer,
+				"color":     "red",
+				"fontcolor": "red",
+			}); err != nil {
 				return "", err
 			}
 		}
