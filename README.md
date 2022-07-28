@@ -28,8 +28,6 @@ veth-tt         veth-tt1    -1
 ```
 
 ## graph output
-### prequisite
-Create an ouput image with any [graphviz](http://www.graphviz.org/download) compatible renderer
 
 ```
 # sudo go run cmd/iftree/main.go --graph | dot -Tpng  > output.png
@@ -37,8 +35,14 @@ or
 # sudo go run cmd/iftree/main.go --graph > xx.dot
 # dot -Tpng xx.dot > output.png
 ```
-### example output
+
+output
 ![networ-devices](./img/sample.png)
+
+### prequisite
+Create an ouput image with any [graphviz](http://www.graphviz.org/download) compatible renderer
+
+--- 
 
 ### roadmap
 
