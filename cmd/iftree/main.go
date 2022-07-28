@@ -39,6 +39,7 @@ func main() {
 			if err != nil {
 				panic(err)
 			}
+
 			v, ok := vm[master.Attrs().Name]
 			if !ok {
 				vm[master.Attrs().Name] = []Pair{}
@@ -60,9 +61,14 @@ func main() {
 		}
 	}
 	for k, v := range vm {
-
 		w := tabwriter.NewWriter(os.Stdout, 4, 8, 4, ' ', 0)
-		fmt.Fprintf(w, "{bridge}: %s\n", k)
+
+		master, err := netlink.LinkByName(k)
+		if err != nil {
+			panic(err)
+		}
+
+		fmt.Fprintf(w, "BRIDGE: %s\t%s\n", k, master.Attrs().OperState)
 		fmt.Fprintf(w, "netnsName\tveth\tpeer\tnetnsID\n")
 		for _, nsName := range netNsMap {
 
