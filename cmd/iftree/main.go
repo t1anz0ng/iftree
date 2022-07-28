@@ -13,6 +13,7 @@ import (
 	"github.com/vishvananda/netns"
 
 	"github.com/TianZong48/iftree/pkg"
+	"github.com/TianZong48/iftree/pkg/formatter"
 	"github.com/TianZong48/iftree/pkg/graph"
 	"github.com/TianZong48/iftree/pkg/netutil"
 )
@@ -120,34 +121,8 @@ func main() {
 		return
 	}
 	w := tabwriter.NewWriter(os.Stdout, 4, 8, 4, ' ', 0)
-	for k, v := range vm {
-		master, err := netlink.LinkByName(k)
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Fprintln(w, "----------------------------------------------------")
-		fmt.Fprintf(w, "BRIDGE: %s\t%s\n", k, master.Attrs().OperState)
-		fmt.Fprintf(w, "netnsName\tveth\tpeer\tpeerInNetns\tnetnsID\n")
-		for _, nsName := range netNsMap {
-			f := false
-			for _, p := range v {
-				if nsName == p.NetNsName {
-					if !f {
-						fmt.Fprintf(w, "|____%s\n", nsName)
-						f = true
-					}
-					fmt.Fprintf(w, "     |----%s\t%s\t%s\t%d\n", p.Veth, p.Peer, p.PeerInNetns, p.NetNsID)
-				}
-			}
-		}
-		fmt.Fprintf(w, "\n")
-		w.Flush()
-	}
-	fmt.Fprintln(w, "----------------------------------------------------")
-	fmt.Fprintln(w, "unused veth pair without ")
-	fmt.Fprintf(w, "veth\tpeer\tnetnsID\n")
-	for _, p := range vpairs {
-		fmt.Fprintf(w, "%s\t%s\t%d\n", p.Veth, p.Peer, p.NetNsID)
+	if err := formatter.Print(w, vm, netNsMap, vpairs); err != nil {
+		log.Fatal(err)
 	}
 	w.Flush()
 

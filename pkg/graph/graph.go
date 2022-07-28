@@ -25,7 +25,6 @@ func GenerateGraph(m map[string][]pkg.Pair) (string, error) {
 				_ = root.AddSubGraph("G", sub.Name,
 					map[string]string{
 						"label": vp.NetNsName,
-						"rank":  "same",
 						"style": "filled",
 					})
 			}
