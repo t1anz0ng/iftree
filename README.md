@@ -9,19 +9,19 @@ The intent is for understanding container networks :D
 
 ----------------------------------------------------
 BRIDGE: cni_bridge0    up
-netnsName              veth    peer    netnsID
+netnsName              veth    peer    peerInNetns    netnsID
 |____123456
-     |____veth57e09f05    eth13    0
+     |____veth57e09f05    enp5s0    eth13    0
 
 ----------------------------------------------------
 BRIDGE: cni_br    up
-netnsName         veth    peer    netnsID
+netnsName         veth    peer    peerInNetns    netnsID
 |____123
-     |____veth5e41415a    eth1    2
-     |____veth90c9f5fa    eth2    2
-     |____veth385ac3bb    eth3    2
+     |____veth5e41415a    enp5s0     eth1    2
+     |____veth90c9f5fa    wlp4s0     eth2    2
+     |____veth385ac3bb    docker0    eth3    2
 |____321
-     |____veth6328d76d    eth1    3
+     |____veth6328d76d    enp5s0    eth1    3
 ```
 
 ### roadmap

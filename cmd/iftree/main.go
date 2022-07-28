@@ -16,9 +16,10 @@ import (
 )
 
 type Pair struct {
-	Veth   string
-	Peer   string
-	PeerId int
+	Veth        string
+	Peer        string
+	PeerInNetns string
+	PeerId      int
 
 	NetNsID   int
 	NetNsName string
@@ -71,6 +72,10 @@ func main() {
 			}
 			log.Debugf("%s %d", veth.Name, peerIdx)
 
+			peer, err := netlink.LinkByIndex(peerIdx)
+			if err != nil {
+				log.Fatal(err)
+			}
 			peerNetNs, ok := netNsMap[veth.NetNsID]
 			if !ok {
 				log.Debugf("can't found namespace name for %d", veth.NetNsID)
@@ -93,11 +98,12 @@ func main() {
 				log.Fatal(err)
 			}
 			vm[master.Attrs().Name] = append(v, Pair{
-				Veth:      veth.Name,
-				Peer:      peerInNs.Attrs().Name,
-				PeerId:    peerIdx,
-				NetNsID:   veth.NetNsID,
-				NetNsName: peerNetNs})
+				Veth:        veth.Name,
+				Peer:        peer.Attrs().Name,
+				PeerInNetns: peerInNs.Attrs().Name,
+				PeerId:      peerIdx,
+				NetNsID:     veth.NetNsID,
+				NetNsName:   peerNetNs})
 		}
 	}
 	for k, v := range vm {
@@ -109,7 +115,7 @@ func main() {
 		}
 		fmt.Fprintln(w, "----------------------------------------------------")
 		fmt.Fprintf(w, "BRIDGE: %s\t%s\n", k, master.Attrs().OperState)
-		fmt.Fprintf(w, "netnsName\tveth\tpeer\tnetnsID\n")
+		fmt.Fprintf(w, "netnsName\tveth\tpeer\tpeerInNetns\tnetnsID\n")
 		for _, nsName := range netNsMap {
 
 			f := false
@@ -119,7 +125,7 @@ func main() {
 						fmt.Fprintf(w, "|____%s\n", nsName)
 						f = true
 					}
-					fmt.Fprintf(w, "     |____%s\t%s\t%d\n", p.Veth, p.Peer, p.NetNsID)
+					fmt.Fprintf(w, "     |____%s\t%s\t%s\t%d\n", p.Veth, p.Peer, p.PeerInNetns, p.NetNsID)
 				}
 			}
 		}
