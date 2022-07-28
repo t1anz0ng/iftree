@@ -3,6 +3,7 @@ module github.com/TianZong48/iftree
 go 1.18
 
 require (
+	github.com/awalterschulze/gographviz v2.0.3+incompatible
 	github.com/containerd/nerdctl v0.22.0
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/pflag v1.0.5

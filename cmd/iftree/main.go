@@ -12,21 +12,14 @@ import (
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 
+	"github.com/TianZong48/iftree/pkg"
+	"github.com/TianZong48/iftree/pkg/graph"
 	"github.com/TianZong48/iftree/pkg/netutil"
 )
 
-type Pair struct {
-	Veth        string
-	Peer        string
-	PeerInNetns string
-	PeerId      int
-
-	NetNsID   int
-	NetNsName string
-}
-
 var (
-	debug = pflag.BoolP("debug", "d", false, "print debug message")
+	debug   = pflag.BoolP("debug", "d", false, "print debug message")
+	isGraph = pflag.BoolP("graph", "g", false, "output in graphviz dot language(https://graphviz.org/doc/info/lang.html")
 )
 
 func main() {
@@ -51,8 +44,8 @@ func main() {
 		log.Fatal(err)
 	}
 	// master link
-	vm := make(map[string][]Pair)
-	vpairs := []Pair{}
+	vm := make(map[string][]pkg.Pair)
+	vpairs := []pkg.Pair{}
 
 	for _, link := range ll {
 		if veth, ok := link.(*netlink.Veth); ok {
@@ -69,10 +62,9 @@ func main() {
 			if err != nil {
 				log.Fatal(err)
 			}
-			log.Debugf("found pair: %s <-> %s", veth.Name, peer.Attrs().Name)
 			peerNetNs, ok := netNsMap[veth.NetNsID]
 			if !ok || veth.MasterIndex == 0 {
-				p := Pair{
+				p := pkg.Pair{
 					Veth:    veth.Name,
 					Peer:    peer.Attrs().Name,
 					PeerId:  peerIdx,
@@ -85,7 +77,6 @@ func main() {
 			if err != nil {
 				log.Fatal(err)
 			}
-			log.Debugf("peer netns fd: %d\n", hd)
 			if err := netns.Set(hd); err != nil {
 				log.Fatalf("can't set current netns to %s, err: %s", peerNetNs, err)
 			}
@@ -102,14 +93,14 @@ func main() {
 			if err != nil {
 				log.Fatal(err)
 			}
-			log.Debugf("%s\t%+v\n", veth.Name, *master.Attrs())
+
 			// if master is not bridge
 			if _, ok := master.(*netlink.Bridge); ok {
 				v, ok := vm[master.Attrs().Name]
 				if !ok {
-					vm[master.Attrs().Name] = []Pair{}
+					vm[master.Attrs().Name] = []pkg.Pair{}
 				}
-				vm[master.Attrs().Name] = append(v, Pair{
+				vm[master.Attrs().Name] = append(v, pkg.Pair{
 					Veth:        veth.Name,
 					Peer:        peer.Attrs().Name,
 					PeerInNetns: peerInNs.Attrs().Name,
@@ -120,8 +111,15 @@ func main() {
 		}
 
 	}
+	if *isGraph {
+		output, err := graph.GenerateGraph(vm)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Fprintln(os.Stdout, output)
+		return
+	}
 	w := tabwriter.NewWriter(os.Stdout, 4, 8, 4, ' ', 0)
-
 	for k, v := range vm {
 		master, err := netlink.LinkByName(k)
 		if err != nil {
@@ -131,7 +129,6 @@ func main() {
 		fmt.Fprintf(w, "BRIDGE: %s\t%s\n", k, master.Attrs().OperState)
 		fmt.Fprintf(w, "netnsName\tveth\tpeer\tpeerInNetns\tnetnsID\n")
 		for _, nsName := range netNsMap {
-
 			f := false
 			for _, p := range v {
 				if nsName == p.NetNsName {
@@ -139,7 +136,7 @@ func main() {
 						fmt.Fprintf(w, "|____%s\n", nsName)
 						f = true
 					}
-					fmt.Fprintf(w, "     |____%s\t%s\t%s\t%d\n", p.Veth, p.Peer, p.PeerInNetns, p.NetNsID)
+					fmt.Fprintf(w, "     |----%s\t%s\t%s\t%d\n", p.Veth, p.Peer, p.PeerInNetns, p.NetNsID)
 				}
 			}
 		}
@@ -153,4 +150,5 @@ func main() {
 		fmt.Fprintf(w, "%s\t%s\t%d\n", p.Veth, p.Peer, p.NetNsID)
 	}
 	w.Flush()
+
 }
