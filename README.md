@@ -5,19 +5,28 @@ CLI, easy way to illustrate local network interface.
 The intent is for understanding container networks :D
 
 ```
-# go run main.go
+# sudo go run main.go
 
-{bridge}: cni_bridge0
-netnsName    veth    peer    netnsID
-|----123456
-     |____veth57e09f05    enp5s0    0
+----------------------------------------------------
+BRIDGE: cni_bridge0    up
+netnsName              veth    peer    netnsID
+|____123456
+     |____veth57e09f05    eth13    0
 
-{bridge}: cni_br
-netnsName    veth    peer    netnsID
-|----321
-     |____veth6328d76d    enp5s0    3
-|----123
-     |____veth5e41415a    enp5s0     2
-     |____veth90c9f5fa    wlp4s0     2
-     |____veth385ac3bb    docker0    2
+----------------------------------------------------
+BRIDGE: cni_br    up
+netnsName         veth    peer    netnsID
+|____123
+     |____veth5e41415a    eth1    2
+     |____veth90c9f5fa    eth2    2
+     |____veth385ac3bb    eth3    2
+|____321
+     |____veth6328d76d    eth1    3
 ```
+
+### roadmap
+
+- [x] show peer name in container
+- [ ] rich text
+- [ ] topo relation in ascii graph
+- [ ] support more networking device
