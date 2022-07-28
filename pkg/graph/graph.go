@@ -11,12 +11,16 @@ import (
 func GenerateGraph(m map[string][]pkg.Pair) (string, error) {
 
 	root := gographviz.NewEscape()
-	root.SetName("G")
+	if err := root.SetName("G"); err != nil {
+		return "", err
+	}
 
 	for bridge, v := range m {
-		root.AddNode("G", bridge, map[string]string{
+		if err := root.AddNode("G", bridge, map[string]string{
 			"nodesep": "4.0",
-		})
+		}); err != nil {
+			return "", err
+		}
 		m := make(map[string]*gographviz.SubGraph)
 		for i, vp := range v {
 			// group by vp.NetNsName
@@ -24,12 +28,14 @@ func GenerateGraph(m map[string][]pkg.Pair) (string, error) {
 			if !ok {
 				sub = gographviz.NewSubGraph(fmt.Sprintf("cluster%s%c", bridge, 'A'+i))
 				m[vp.NetNsName] = sub
-				_ = root.AddSubGraph("G", sub.Name,
+				if err := root.AddSubGraph("G", sub.Name,
 					map[string]string{
 						"label":   "NetNS: " + vp.NetNsName,
 						"style":   "filled",
 						"nodesep": "4.0",
-					})
+					}); err != nil {
+					return "", err
+				}
 			}
 			if err := root.AddNode("G", vp.Veth, nil); err != nil {
 				return "", err
