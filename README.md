@@ -22,6 +22,14 @@ netnsName         veth    peer    peerInNetns    netnsID
      |____veth385ac3bb    docker0    eth3    2
 |____321
      |____veth6328d76d    enp5s0    eth1    3
+
+----------------------------------------------------
+unused veth pair without
+veth            peer        netnsID
+veth31bc095b    enp5s0      1
+veth12d98148    wlp4s0      1
+veth-tt1        veth-tt     -1
+veth-tt         veth-tt1    -1
 ```
 
 ### roadmap

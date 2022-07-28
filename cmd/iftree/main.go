@@ -50,42 +50,42 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	// master link
 	vm := make(map[string][]Pair)
+	vpairs := []Pair{}
 
 	for _, link := range ll {
 		if veth, ok := link.(*netlink.Veth); ok {
-			master, err := netlink.LinkByIndex(veth.Attrs().MasterIndex)
-			if err != nil {
-				log.Fatal(err)
-			}
 
 			orign, _ := netns.Get()
 			defer orign.Close()
 
-			v, ok := vm[master.Attrs().Name]
-			if !ok {
-				vm[master.Attrs().Name] = []Pair{}
-			}
 			peerIdx, err := netlink.VethPeerIndex(veth)
 			if err != nil {
 				log.Fatal(err)
 			}
-			log.Debugf("%s %d", veth.Name, peerIdx)
 
 			peer, err := netlink.LinkByIndex(peerIdx)
 			if err != nil {
 				log.Fatal(err)
 			}
+			log.Debugf("found pair: %s <-> %s", veth.Name, peer.Attrs().Name)
 			peerNetNs, ok := netNsMap[veth.NetNsID]
-			if !ok {
-				log.Debugf("can't found namespace name for %d", veth.NetNsID)
+			if !ok || veth.MasterIndex == 0 {
+				p := Pair{
+					Veth:    veth.Name,
+					Peer:    peer.Attrs().Name,
+					PeerId:  peerIdx,
+					NetNsID: veth.NetNsID}
+				vpairs = append(vpairs, p)
+				log.Debugf("unused veth device %+v\n", p)
 				continue
 			}
 			hd, err := netns.GetFromName(peerNetNs)
 			if err != nil {
 				log.Fatal(err)
 			}
-			log.Debug(hd)
+			log.Debugf("peer netns fd: %d\n", hd)
 			if err := netns.Set(hd); err != nil {
 				log.Fatalf("can't set current netns to %s, err: %s", peerNetNs, err)
 			}
@@ -97,18 +97,32 @@ func main() {
 			if err := netns.Set(orign); err != nil {
 				log.Fatal(err)
 			}
-			vm[master.Attrs().Name] = append(v, Pair{
-				Veth:        veth.Name,
-				Peer:        peer.Attrs().Name,
-				PeerInNetns: peerInNs.Attrs().Name,
-				PeerId:      peerIdx,
-				NetNsID:     veth.NetNsID,
-				NetNsName:   peerNetNs})
-		}
-	}
-	for k, v := range vm {
-		w := tabwriter.NewWriter(os.Stdout, 4, 8, 4, ' ', 0)
 
+			master, err := netlink.LinkByIndex(veth.Attrs().MasterIndex)
+			if err != nil {
+				log.Fatal(err)
+			}
+			log.Debugf("%s\t%+v\n", veth.Name, *master.Attrs())
+			// if master is not bridge
+			if _, ok := master.(*netlink.Bridge); ok {
+				v, ok := vm[master.Attrs().Name]
+				if !ok {
+					vm[master.Attrs().Name] = []Pair{}
+				}
+				vm[master.Attrs().Name] = append(v, Pair{
+					Veth:        veth.Name,
+					Peer:        peer.Attrs().Name,
+					PeerInNetns: peerInNs.Attrs().Name,
+					PeerId:      peerIdx,
+					NetNsID:     veth.NetNsID,
+					NetNsName:   peerNetNs})
+			}
+		}
+
+	}
+	w := tabwriter.NewWriter(os.Stdout, 4, 8, 4, ' ', 0)
+
+	for k, v := range vm {
 		master, err := netlink.LinkByName(k)
 		if err != nil {
 			log.Fatal(err)
@@ -132,4 +146,11 @@ func main() {
 		fmt.Fprintf(w, "\n")
 		w.Flush()
 	}
+	fmt.Fprintln(w, "----------------------------------------------------")
+	fmt.Fprintln(w, "unused veth pair without ")
+	fmt.Fprintf(w, "veth\tpeer\tnetnsID\n")
+	for _, p := range vpairs {
+		fmt.Fprintf(w, "%s\t%s\t%d\n", p.Veth, p.Peer, p.NetNsID)
+	}
+	w.Flush()
 }
