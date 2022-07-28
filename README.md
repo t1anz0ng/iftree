@@ -7,6 +7,8 @@ CLI, easy way to illustrate local network interface.
 
 The intent is for understanding container networks :D
 
+![networ-devices](./img/sample.png)
+
 ## example
 ```
 # sudo go run main.go
@@ -38,8 +40,7 @@ or
 # sudo go run cmd/iftree/main.go --graph > xx.dot
 # dot -Tpng xx.dot > output.png
 ```
-
-output
+example:
 ![networ-devices](./img/sample.png)
 
 ### prequisite

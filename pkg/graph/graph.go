@@ -28,12 +28,15 @@ func GenerateGraph(m map[string][]pkg.Pair) (string, error) {
 			if !ok {
 				sub = gographviz.NewSubGraph(fmt.Sprintf("cluster%s%c", bridge, 'A'+i))
 				m[vp.NetNsName] = sub
-				if err := root.AddSubGraph("G", sub.Name,
-					map[string]string{
-						"label":   "NetNS: " + vp.NetNsName,
-						"style":   "filled",
-						"nodesep": "4.0",
-					}); err != nil {
+				attr := map[string]string{
+					"label":   fmt.Sprintf("NetNS: %s", vp.NetNsName),
+					"style":   "filled",
+					"nodesep": "4.0",
+				}
+				if vp.Master != nil {
+					attr["label"] += fmt.Sprintf("\nIP: %s", vp.Master.IP[0])
+				}
+				if err := root.AddSubGraph("G", sub.Name, attr); err != nil {
 					return "", err
 				}
 			}

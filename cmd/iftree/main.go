@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"runtime"
+	"syscall"
 	"text/tabwriter"
 
 	"github.com/containerd/nerdctl/pkg/rootlessutil"
@@ -29,7 +31,7 @@ func main() {
 		log.Error("iftree must be run as root to enter ns")
 		os.Exit(1)
 	}
-	log.SetLevel(log.ErrorLevel)
+	log.SetLevel(log.InfoLevel)
 	if *debug {
 		log.SetLevel(log.DebugLevel)
 	}
@@ -96,18 +98,32 @@ func main() {
 			}
 
 			// if master is not bridge
-			if _, ok := master.(*netlink.Bridge); ok {
+			if master, ok := master.(*netlink.Bridge); ok {
 				v, ok := vm[master.Attrs().Name]
 				if !ok {
 					vm[master.Attrs().Name] = []pkg.Pair{}
 				}
-				vm[master.Attrs().Name] = append(v, pkg.Pair{
+
+				pair := pkg.Pair{
 					Veth:        veth.Name,
 					Peer:        peer.Attrs().Name,
 					PeerInNetns: peerInNs.Attrs().Name,
 					PeerId:      peerIdx,
 					NetNsID:     veth.NetNsID,
-					NetNsName:   peerNetNs})
+					NetNsName:   peerNetNs,
+				}
+				addrs, err := netlink.AddrList(master, syscall.AF_INET)
+				if err != nil {
+					log.Fatal(err)
+				}
+				if len(addrs) > 0 {
+					pair.Master = &pkg.Bridge{
+						Name: master.Name,
+						IP:   []*net.IP{&addrs[0].IP},
+					}
+				}
+
+				vm[master.Attrs().Name] = append(v, pair)
 			}
 		}
 
