@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"text/tabwriter"
 
+	"github.com/containerd/nerdctl/pkg/rootlessutil"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"github.com/vishvananda/netlink"
@@ -29,6 +30,10 @@ var (
 
 func main() {
 	pflag.Parse()
+	if rootlessutil.IsRootless() {
+		log.Error("iftree must be run as root to enter ns")
+		os.Exit(1)
+	}
 	log.SetLevel(log.ErrorLevel)
 	if *debug {
 		log.SetLevel(log.DebugLevel)
@@ -117,9 +122,7 @@ func main() {
 					fmt.Fprintf(w, "     |____%s\t%s\t%d\n", p.Veth, p.Peer, p.NetNsID)
 				}
 			}
-			w.Flush()
 		}
-
 		fmt.Fprintf(w, "\n")
 		w.Flush()
 	}
