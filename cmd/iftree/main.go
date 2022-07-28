@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -33,6 +34,7 @@ func main() {
 	}
 	log.SetLevel(log.InfoLevel)
 	if *debug {
+		log.SetReportCaller(true)
 		log.SetLevel(log.DebugLevel)
 	}
 	runtime.LockOSThread()
@@ -60,16 +62,40 @@ func main() {
 			if err != nil {
 				log.Fatal(err)
 			}
+			log.Debugf("%+v\n", veth)
 
+			var peerName string
 			peer, err := netlink.LinkByIndex(peerIdx)
 			if err != nil {
-				log.Fatal(err)
+				var linkNotFoundError netlink.LinkNotFoundError
+				if !errors.As(err, &linkNotFoundError) {
+					log.Fatalf("failed get link by index: %d, err: %v", peerIdx, err)
+				}
+				log.Warnf("can't find peer link %d, try enter ns\n", peerIdx)
+				hd, err := netns.GetFromName(netNsMap[veth.NetNsID])
+				if err != nil {
+					log.Fatal(err)
+				}
+				if err := netns.Set(hd); err != nil {
+					log.Fatal(err)
+				}
+				link, err := netlink.LinkByIndex(peerIdx)
+				if err != nil {
+					log.Fatal(err)
+				}
+				peerName = link.Attrs().Name
+				if err := netns.Set(orign); err != nil {
+					log.Fatal(err)
+				}
+			} else {
+				peerName = peer.Attrs().Name
 			}
+
 			peerNetNs, ok := netNsMap[veth.NetNsID]
 			if !ok || veth.MasterIndex == 0 {
 				p := pkg.Pair{
 					Veth:    veth.Name,
-					Peer:    peer.Attrs().Name,
+					Peer:    peerName,
 					PeerId:  peerIdx,
 					NetNsID: veth.NetNsID}
 				vpairs = append(vpairs, p)
@@ -106,7 +132,7 @@ func main() {
 
 				pair := pkg.Pair{
 					Veth:        veth.Name,
-					Peer:        peer.Attrs().Name,
+					Peer:        peerName,
 					PeerInNetns: peerInNs.Attrs().Name,
 					PeerId:      peerIdx,
 					NetNsID:     veth.NetNsID,
