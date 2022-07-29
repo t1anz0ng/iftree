@@ -29,6 +29,7 @@ func GenerateGraph(m map[string][]pkg.Pair, vpairs []pkg.Pair, bm map[string]*ne
 			"label":   strings.Join(labels, "\\n"),
 			"nodesep": "4.0",
 			"shape":   "octagon",
+			"style":   "filled",
 		}
 		if err := root.AddNode("G", bridge, attr); err != nil {
 			return "", err
@@ -68,7 +69,6 @@ func GenerateGraph(m map[string][]pkg.Pair, vpairs []pkg.Pair, bm map[string]*ne
 				if err := root.AddNode(sub.Name, vethInNsName, map[string]string{
 					"label": vp.PeerInNetns,
 					"shape": "oval",
-					"color": "white",
 					"style": "filled",
 				}); err != nil {
 					return "", err

@@ -61,8 +61,11 @@ e.g: online editor: https://dreampuf.github.io/GraphvizOnline
 
 ```
 # sudo go run cmd/iftree/main.go --graph 
+```
 
 generate image using `dot`(http://www.graphviz.org/download/#executable-packages)
+
+```
 # sudo go run cmd/iftree/main.go --graph | dot -Tpng  > output.png
 ```
 
