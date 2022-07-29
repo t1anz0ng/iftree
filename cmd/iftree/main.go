@@ -51,23 +51,8 @@ func main() {
 	vm := make(map[string][]pkg.Pair)
 	vpairs := []pkg.Pair{}
 	bm := make(map[string]*net.IP)
+
 	for _, link := range ll {
-		// log.Infof("index: %d\tname: %s\ttype: %s\tmasterid: %d", link.Attrs().Index, link.Attrs().Name, link.Type(), link.Attrs().MasterIndex)
-		// if link.Attrs().Slave != nil {
-		// 	log.Infof("\t%s", link.Attrs().Slave.SlaveType())
-		// }
-		// if veth, ok := link.(*netlink.Veth); ok {
-		// 	peerIdx, _ := netlink.VethPeerIndex(veth)
-		// 	log.Infof("veth, peer index %d, %d, %s", peerIdx, veth.NetNsID, netNsMap[veth.NetNsID])
-		// 	peer, err := netlink.LinkByIndex(peerIdx)
-		// 	if err != nil {
-		// 		log.Warn(err)
-		// 		continue
-		// 	}
-		// 	log.Infof("peer name: %s", peer.Attrs().Name)
-		// }
-		// log.Info("------------------------------")
-		// continue
 		veth, ok := link.(*netlink.Veth)
 		if ok { // skip device not enslaved to any bridge
 
@@ -87,7 +72,6 @@ func main() {
 				vpairs = append(vpairs, p)
 				continue
 			}
-			log.Debugf("%+v\n", veth)
 
 			master, err := netlink.LinkByIndex(veth.Attrs().MasterIndex)
 			if err != nil {
@@ -131,7 +115,6 @@ func main() {
 				bm[bridge] = &addrs[0].IP
 			}
 			vm[bridge] = append(v, pair)
-
 		}
 
 	}

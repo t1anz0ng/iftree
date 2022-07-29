@@ -16,6 +16,9 @@ func GenerateGraph(m map[string][]pkg.Pair, vpairs []pkg.Pair, bm map[string]*ne
 	if err := root.SetName("G"); err != nil {
 		return "", err
 	}
+	if err := root.AddAttr("G", "layout", "fdp"); err != nil {
+		return "", err
+	}
 
 	for bridge, v := range m {
 		labels := []string{bridge}
