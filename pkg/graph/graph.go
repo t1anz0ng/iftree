@@ -2,13 +2,15 @@ package graph
 
 import (
 	"fmt"
+	"net"
+	"strings"
 
 	"github.com/awalterschulze/gographviz"
 
 	"github.com/TianZong48/iftree/pkg"
 )
 
-func GenerateGraph(m map[string][]pkg.Pair) (string, error) {
+func GenerateGraph(m map[string][]pkg.Pair, vpairs []pkg.Pair, bm map[string]*net.IP) (string, error) {
 
 	root := gographviz.NewEscape()
 	if err := root.SetName("G"); err != nil {
@@ -16,50 +18,73 @@ func GenerateGraph(m map[string][]pkg.Pair) (string, error) {
 	}
 
 	for bridge, v := range m {
-		if err := root.AddNode("G", bridge, map[string]string{
+		labels := []string{bridge}
+		if ip, ok := bm[bridge]; ok {
+			labels = append(labels, ip.String())
+		}
+		attr := map[string]string{
+			"label":   strings.Join(labels, "\\n"),
 			"nodesep": "4.0",
-		}); err != nil {
+		}
+		if err := root.AddNode("G", bridge, attr); err != nil {
 			return "", err
 		}
 		m := make(map[string]*gographviz.SubGraph)
 		for i, vp := range v {
 			// group by vp.NetNsName
-			sub, ok := m[vp.NetNsName]
-			if !ok {
-				sub = gographviz.NewSubGraph(fmt.Sprintf("cluster%s%c", bridge, 'A'+i))
-				m[vp.NetNsName] = sub
-				attr := map[string]string{
-					"label":   fmt.Sprintf("NetNS: %s", vp.NetNsName),
-					"style":   "filled",
-					"nodesep": "4.0",
+			if vp.NetNsName != "" {
+				sub, ok := m[vp.NetNsName]
+				if !ok {
+					// init subgraph for netns
+					sub = gographviz.NewSubGraph(fmt.Sprintf("cluster%s%c", bridge, 'A'+i))
+					m[vp.NetNsName] = sub
+					attr := map[string]string{
+						"label":   fmt.Sprintf("NetNS: %s", vp.NetNsName),
+						"style":   "filled",
+						"nodesep": "4.0",
+					}
+
+					if err := root.AddSubGraph("G", sub.Name, attr); err != nil {
+						return "", err
+					}
 				}
-				if vp.Master != nil {
-					attr["label"] += fmt.Sprintf("\nIP: %s", vp.Master.IP[0])
-				}
-				if err := root.AddSubGraph("G", sub.Name, attr); err != nil {
+				if err := root.AddNode("G", vp.Veth, map[string]string{
+					"label": vp.Veth,
+				}); err != nil {
 					return "", err
 				}
-			}
-			if err := root.AddNode("G", vp.Veth, nil); err != nil {
-				return "", err
-			}
-			if err := root.AddEdge(vp.Veth, bridge, false, map[string]string{
-				"color": "black",
-			}); err != nil {
-				return "", err
-			}
-			vethInNsName := fmt.Sprintf("%s_%d", vp.PeerInNetns, i)
-			if err := root.AddNode(sub.Name, vethInNsName, map[string]string{
-				"label": vp.PeerInNetns,
-			}); err != nil {
-				return "", err
-			}
-			if err := root.AddEdge(vp.Veth, vethInNsName, false, map[string]string{
-				"label":     vp.Peer,
-				"color":     "red",
-				"fontcolor": "red",
-			}); err != nil {
-				return "", err
+				if err := root.AddEdge(vp.Veth, bridge, false, map[string]string{
+					"color": "black",
+				}); err != nil {
+					return "", err
+				}
+				vethInNsName := fmt.Sprintf("%s_%d", vp.PeerInNetns, i)
+				if err := root.AddNode(sub.Name, vethInNsName, map[string]string{
+					"label": vp.PeerInNetns,
+				}); err != nil {
+					return "", err
+				}
+				if err := root.AddEdge(vp.Veth, vethInNsName, false, map[string]string{
+					"color":     "red",
+					"fontcolor": "red",
+				}); err != nil {
+					return "", err
+				}
+			} else {
+				attr := map[string]string{
+					"label": vp.Veth,
+				}
+				if vp.Orphaned {
+					attr["label"] += "\n(orphaned)"
+				}
+				if err := root.AddNode("G", vp.Veth, attr); err != nil {
+					return "", err
+				}
+				if err := root.AddEdge(vp.Veth, bridge, false, map[string]string{
+					"color": "black",
+				}); err != nil {
+					return "", err
+				}
 			}
 		}
 	}

@@ -7,6 +7,7 @@ type Pair struct {
 	Peer        string
 	PeerInNetns string
 	PeerId      int
+	Orphaned    bool
 
 	NetNsID   int
 	NetNsName string
@@ -16,5 +17,5 @@ type Pair struct {
 
 type Bridge struct {
 	Name string
-	IP   []*net.IP
+	IP   *net.IP
 }

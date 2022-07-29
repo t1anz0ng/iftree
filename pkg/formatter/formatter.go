@@ -18,16 +18,16 @@ func Print(w io.Writer, vm map[string][]pkg.Pair, netNsMap map[int]string, vpair
 		}
 		fmt.Fprintln(w, "----------------------------------------------------")
 		fmt.Fprintf(w, "BRIDGE: %s\t%s\n", k, master.Attrs().OperState)
-		fmt.Fprintf(w, "netnsName\tveth\tpeer\tpeerInNetns\tnetnsID\n")
+		fmt.Fprintf(w, "netnsName\tveth\tpeerInNetns\tnetnsID\n")
 		for _, nsName := range netNsMap {
 			f := false
 			for _, p := range v {
 				if nsName == p.NetNsName {
 					if !f {
-						fmt.Fprintf(w, "|____%s\n", nsName)
+						fmt.Fprintf(w, "└────%s\n", nsName)
 						f = true
 					}
-					fmt.Fprintf(w, "     |----%s\t%s\t%s\t%d\n", p.Veth, p.Peer, p.PeerInNetns, p.NetNsID)
+					fmt.Fprintf(w, "     ├────%s\t%s\t%d\n", p.Veth, p.PeerInNetns, p.NetNsID)
 				}
 			}
 		}

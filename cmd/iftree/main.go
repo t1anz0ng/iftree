@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -51,72 +50,44 @@ func main() {
 	// master link
 	vm := make(map[string][]pkg.Pair)
 	vpairs := []pkg.Pair{}
-
+	bm := make(map[string]*net.IP)
 	for _, link := range ll {
-		if veth, ok := link.(*netlink.Veth); ok {
+		// log.Infof("index: %d\tname: %s\ttype: %s\tmasterid: %d", link.Attrs().Index, link.Attrs().Name, link.Type(), link.Attrs().MasterIndex)
+		// if link.Attrs().Slave != nil {
+		// 	log.Infof("\t%s", link.Attrs().Slave.SlaveType())
+		// }
+		// if veth, ok := link.(*netlink.Veth); ok {
+		// 	peerIdx, _ := netlink.VethPeerIndex(veth)
+		// 	log.Infof("veth, peer index %d, %d, %s", peerIdx, veth.NetNsID, netNsMap[veth.NetNsID])
+		// 	peer, err := netlink.LinkByIndex(peerIdx)
+		// 	if err != nil {
+		// 		log.Warn(err)
+		// 		continue
+		// 	}
+		// 	log.Infof("peer name: %s", peer.Attrs().Name)
+		// }
+		// log.Info("------------------------------")
+		// continue
+		veth, ok := link.(*netlink.Veth)
+		if ok { // skip device not enslaved to any bridge
 
-			orign, _ := netns.Get()
-			defer orign.Close()
+			origin, _ := netns.Get()
+			defer origin.Close()
 
 			peerIdx, err := netlink.VethPeerIndex(veth)
 			if err != nil {
 				log.Fatal(err)
 			}
-			log.Debugf("%+v\n", veth)
-
-			var peerName string
-			peer, err := netlink.LinkByIndex(peerIdx)
-			if err != nil {
-				var linkNotFoundError netlink.LinkNotFoundError
-				if !errors.As(err, &linkNotFoundError) {
-					log.Fatalf("failed get link by index: %d, err: %v", peerIdx, err)
-				}
-				log.Warnf("can't find peer link %d, try enter ns\n", peerIdx)
-				hd, err := netns.GetFromName(netNsMap[veth.NetNsID])
-				if err != nil {
-					log.Fatal(err)
-				}
-				if err := netns.Set(hd); err != nil {
-					log.Fatal(err)
-				}
-				link, err := netlink.LinkByIndex(peerIdx)
-				if err != nil {
-					log.Fatal(err)
-				}
-				peerName = link.Attrs().Name
-				if err := netns.Set(orign); err != nil {
-					log.Fatal(err)
-				}
-			} else {
-				peerName = peer.Attrs().Name
-			}
-
-			peerNetNs, ok := netNsMap[veth.NetNsID]
-			if !ok || veth.MasterIndex == 0 {
+			if link.Attrs().MasterIndex == -1 || veth.MasterIndex == 0 {
 				p := pkg.Pair{
 					Veth:    veth.Name,
-					Peer:    peerName,
+					Peer:    veth.PeerName,
 					PeerId:  peerIdx,
 					NetNsID: veth.NetNsID}
 				vpairs = append(vpairs, p)
-				log.Debugf("unused veth device %+v\n", p)
 				continue
 			}
-			hd, err := netns.GetFromName(peerNetNs)
-			if err != nil {
-				log.Fatal(err)
-			}
-			if err := netns.Set(hd); err != nil {
-				log.Fatalf("can't set current netns to %s, err: %s", peerNetNs, err)
-			}
-			peerInNs, err := netlink.LinkByIndex(peerIdx)
-			if err != nil {
-				log.Fatal(err)
-			}
-			// Switch back to the original namespace
-			if err := netns.Set(orign); err != nil {
-				log.Fatal(err)
-			}
+			log.Debugf("%+v\n", veth)
 
 			master, err := netlink.LinkByIndex(veth.Attrs().MasterIndex)
 			if err != nil {
@@ -124,38 +95,48 @@ func main() {
 			}
 
 			// if master is not bridge
-			if master, ok := master.(*netlink.Bridge); ok {
-				v, ok := vm[master.Attrs().Name]
-				if !ok {
-					vm[master.Attrs().Name] = []pkg.Pair{}
-				}
-
-				pair := pkg.Pair{
-					Veth:        veth.Name,
-					Peer:        peerName,
-					PeerInNetns: peerInNs.Attrs().Name,
-					PeerId:      peerIdx,
-					NetNsID:     veth.NetNsID,
-					NetNsName:   peerNetNs,
-				}
-				addrs, err := netlink.AddrList(master, syscall.AF_INET)
+			if _, ok := master.(*netlink.Bridge); !ok {
+				log.Debug("todo: not bridge")
+			}
+			bridge := master.Attrs().Name
+			v, ok := vm[bridge]
+			if !ok {
+				vm[bridge] = []pkg.Pair{}
+			}
+			pair := pkg.Pair{
+				Veth:    veth.Name,
+				PeerId:  peerIdx,
+				NetNsID: veth.NetNsID,
+			}
+			if peerNetNs, ok := netNsMap[veth.NetNsID]; ok {
+				peerInNs, err := netutil.GetPeerInNs(peerNetNs, peerIdx, origin)
 				if err != nil {
 					log.Fatal(err)
 				}
-				if len(addrs) > 0 {
-					pair.Master = &pkg.Bridge{
-						Name: master.Name,
-						IP:   []*net.IP{&addrs[0].IP},
-					}
-				}
-
-				vm[master.Attrs().Name] = append(v, pair)
+				pair.NetNsName = peerNetNs
+				pair.PeerInNetns = peerInNs
+			} else {
+				pair.Orphaned = true
 			}
+
+			addrs, err := netlink.AddrList(master, syscall.AF_INET)
+			if err != nil {
+				log.Fatal(err)
+			}
+			if len(addrs) > 0 {
+				pair.Master = &pkg.Bridge{
+					Name: bridge,
+					IP:   &addrs[0].IP,
+				}
+				bm[bridge] = &addrs[0].IP
+			}
+			vm[bridge] = append(v, pair)
+
 		}
 
 	}
 	if *isGraph {
-		output, err := graph.GenerateGraph(vm)
+		output, err := graph.GenerateGraph(vm, vpairs, bm)
 		if err != nil {
 			log.Fatal(err)
 		}

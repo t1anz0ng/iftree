@@ -3,6 +3,7 @@ package netutil
 import (
 	"os"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )
@@ -42,4 +43,22 @@ func getNetNs() ([]string, error) {
 		ns = append(ns, e.Name())
 	}
 	return ns, nil
+}
+
+func GetPeerInNs(ns string, peerIdx int, origin netns.NsHandle) (string, error) {
+	hd, err := netns.GetFromName(ns)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := netns.Set(hd); err != nil {
+		return "", err
+	}
+	defer netns.Set(origin) //nolint: defer errcheck
+
+	peerInNs, err := netlink.LinkByIndex(peerIdx)
+	if err != nil {
+		return "", err
+	}
+	// Switch back to the original namespace
+	return peerInNs.Attrs().Name, nil
 }

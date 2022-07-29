@@ -46,6 +46,9 @@ example:
 ### prequisite
 Create an ouput image with any [graphviz](http://www.graphviz.org/download) compatible renderer
 
+## known issue
+1. docker netns not supported ye, wrong display
+
 --- 
 
 ### roadmap
