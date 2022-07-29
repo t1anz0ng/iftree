@@ -7,7 +7,7 @@ CLI, easy way to illustrate local network interface.
 
 The intent is for understanding container networks :D
 
-![networ-devices](./img/sample.png)
+![networ-devices](./sample.jpg)
 
 ## example
 ```
@@ -41,7 +41,7 @@ or
 # dot -Tpng xx.dot > output.png
 ```
 example:
-![networ-devices](./img/sample.png)
+![networ-devices](./sample.jpg)
 
 ### prequisite
 Create an ouput image with any [graphviz](http://www.graphviz.org/download) compatible renderer
