@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
@@ -12,29 +13,31 @@ import (
 // https://github.com/shemminger/iproute2/blob/main/ip/ipnetns.c#L432
 // https://github.com/shemminger/iproute2/blob/main/ip/ipnetns.c#L106
 func NetNsMap() (map[int]string, error) {
-	nsArr, err := getNetNsPath()
+	nsArr, err := listNetNsPath()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed list netns")
 	}
+
 	m := make(map[int]string)
-	for _, ns := range nsArr {
-		netnsFd, err := netns.GetFromPath(ns)
+	for _, path := range nsArr {
+		netnsFd, err := netns.GetFromPath(path)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, "fail get netns from path %s", path)
 		}
 
 		id, err := netlink.GetNetNsIdByFd(int(netnsFd))
 		if err != nil {
 			return nil, err
 		}
+		// -1 if the namespace does not have an ID set.
 		if id != -1 {
-			m[id] = ns
+			m[id] = path
 		}
 	}
 	return m, nil
 }
 
-func getNetNsPath() ([]string, error) {
+func listNetNsPath() ([]string, error) {
 	// https://man7.org/linux/man-pages/man8/ip-netns.8.html
 	path := "/var/run/netns"
 	es, err := os.ReadDir(path)

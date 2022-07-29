@@ -64,7 +64,13 @@ func main() {
 				log.Fatal(err)
 			}
 			if link.Attrs().MasterIndex == -1 || veth.MasterIndex == 0 {
-
+				if veth.PeerName == "" {
+					p, err := netlink.LinkByIndex(peerIdx)
+					if err != nil {
+						log.Fatal(err)
+					}
+					veth.PeerName = p.Attrs().Name
+				}
 				p := pkg.Pair{
 					Veth:    veth.Name,
 					Peer:    veth.PeerName,

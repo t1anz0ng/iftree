@@ -36,7 +36,7 @@ func Print(w io.Writer, vm map[string][]pkg.Pair, netNsMap map[int]string, vpair
 	}
 	fmt.Fprintln(w, "----------------------------------------------------")
 	fmt.Fprintln(w, "unused veth pairs")
-	fmt.Fprintf(w, "veth\tpeer\tnetnsID\n")
+	fmt.Fprintf(w, "VETH\tPEER\tNETNSID\n")
 	for _, p := range vpairs {
 		fmt.Fprintf(w, "%s\t%s\t%d\n", p.Veth, p.Peer, p.NetNsID)
 	}
