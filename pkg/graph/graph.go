@@ -16,9 +16,8 @@ func GenerateGraph(m map[string][]pkg.Pair, vpairs []pkg.Pair, bm map[string]*ne
 	if err := root.SetName("G"); err != nil {
 		return "", err
 	}
-	if err := root.AddAttr("G", "layout", "fdp"); err != nil {
-		return "", err
-	}
+	root.AddAttr("G", "layout", "fdp")    //nolint:errcheck
+	root.AddAttr("G", "splines", "ortho") //nolint:errcheck
 
 	for bridge, v := range m {
 		labels := []string{bridge}
@@ -44,7 +43,7 @@ func GenerateGraph(m map[string][]pkg.Pair, vpairs []pkg.Pair, bm map[string]*ne
 					sub = gographviz.NewSubGraph(fmt.Sprintf("cluster%s%c", bridge, 'A'+i))
 					m[vp.NetNsName] = sub
 					attr := map[string]string{
-						"label":   fmt.Sprintf("NetNS: %s", vp.NetNsName),
+						"label":   fmt.Sprintf("NetNS\n%s", vp.NetNsName),
 						"style":   "filled",
 						"color":   "grey",
 						"nodesep": "4.0",
@@ -57,6 +56,7 @@ func GenerateGraph(m map[string][]pkg.Pair, vpairs []pkg.Pair, bm map[string]*ne
 				}
 				if err := root.AddNode("G", vp.Veth, map[string]string{
 					"label": vp.Veth,
+					"style": "filled",
 				}); err != nil {
 					return "", err
 				}
@@ -70,6 +70,7 @@ func GenerateGraph(m map[string][]pkg.Pair, vpairs []pkg.Pair, bm map[string]*ne
 					"label": vp.PeerInNetns,
 					"shape": "oval",
 					"style": "filled",
+					"color": "#f0c674",
 				}); err != nil {
 					return "", err
 				}
@@ -79,6 +80,7 @@ func GenerateGraph(m map[string][]pkg.Pair, vpairs []pkg.Pair, bm map[string]*ne
 				}); err != nil {
 					return "", err
 				}
+
 			} else {
 				attr := map[string]string{
 					"label": vp.Veth,
@@ -98,13 +100,29 @@ func GenerateGraph(m map[string][]pkg.Pair, vpairs []pkg.Pair, bm map[string]*ne
 		}
 	}
 
-	// visited := make(map[string]struct{})
-	// for _, vp := range vpairs {
-	// 	root.AddNode("G", vp.Veth, map[string]string{"label": vp.Veth}) //nolint:errcheck
-	// 	visited[vp.Veth] = struct{}{}
-	// 	root.AddNode("G", vp.Veth, map[string]string{"label": vp.Veth}) //nolint:errcheck
-	// 	visited[vp.Peer] = struct{}{}
-	// }
+	visited := make(map[string]struct{})
+	for _, vp := range vpairs {
+		if _, ok := visited[vp.Veth]; !ok {
+			root.AddNode("G", vp.Veth, //nolint:errcheck
+				map[string]string{
+					"label": vp.Veth,
+					"style": "filled",
+				})
+			visited[vp.Veth] = struct{}{}
+		}
+		if _, ok := visited[vp.Peer]; !ok {
+			root.AddNode("G", vp.Peer, //nolint:errcheck
+				map[string]string{
+					"label": vp.Peer,
+					"style": "filled",
+				})
+			visited[vp.Peer] = struct{}{}
+		}
+		root.AddEdge(vp.Veth, vp.Peer, false, //nolint:errcheck
+			map[string]string{
+				"color": "black",
+			})
+	}
 
 	return root.String(), nil
 }
