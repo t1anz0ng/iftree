@@ -9,7 +9,10 @@ The intent is for understanding container networks :D
 
 ![networ-devices](./sample.jpg)
 
-## example
+## usage
+
+### text
+
 ```
 # sudo go run main.go
 
@@ -32,7 +35,7 @@ veth-tt1        veth-tt     -1
 veth-tt         veth-tt1    -1
 ```
 
-## graph output
+### graph
 
 ```
 # sudo go run cmd/iftree/main.go --graph | dot -Tpng  > output.png
@@ -40,11 +43,11 @@ or
 # sudo go run cmd/iftree/main.go --graph > xx.dot
 # dot -Tpng xx.dot > output.png
 ```
-example:
-![networ-devices](./sample.jpg)
 
 ### prequisite
-Create an ouput image with any [graphviz](http://www.graphviz.org/download) compatible renderer
+Create an ouput image with [graphviz](https://www.graphviz.org/) compatible renderer
+
+online editor: https://dreampuf.github.io/GraphvizOnline
 
 ---
 
