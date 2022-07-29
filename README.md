@@ -11,6 +11,22 @@ The intent is for understanding container networks :D
 
 ## usage
 
+### graph
+
+Create an ouput image with [graphviz](https://www.graphviz.org/) compatible renderer.
+e.g: online editor: https://dreampuf.github.io/GraphvizOnline
+
+```
+# sudo go run cmd/iftree/main.go --graph 
+```
+
+generate image using `dot`(http://www.graphviz.org/download/#executable-packages)
+
+```
+# sudo go run cmd/iftree/main.go --graph | dot -Tpng  > output.png
+```
+
+
 ### text
 
 ```
@@ -54,20 +70,6 @@ veth-tt1    veth-tt     -1
 veth-tt     veth-tt1    -1
 ```
 
-### graph
-
-Create an ouput image with [graphviz](https://www.graphviz.org/) compatible renderer.
-e.g: online editor: https://dreampuf.github.io/GraphvizOnline
-
-```
-# sudo go run cmd/iftree/main.go --graph 
-```
-
-generate image using `dot`(http://www.graphviz.org/download/#executable-packages)
-
-```
-# sudo go run cmd/iftree/main.go --graph | dot -Tpng  > output.png
-```
 
 ---
 
@@ -78,7 +80,3 @@ generate image using `dot`(http://www.graphviz.org/download/#executable-packages
 - [ ] rich text
 - [ ] topo relation in ascii graph
 - [ ] support more networking device
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=TianZong48/iftree&type=Timeline)](https://star-history.com/#TianZong48/iftree&Timeline)
