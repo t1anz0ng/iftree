@@ -28,6 +28,7 @@ func GenerateGraph(m map[string][]pkg.Pair, vpairs []pkg.Pair, bm map[string]*ne
 		attr := map[string]string{
 			"label":   strings.Join(labels, "\\n"),
 			"nodesep": "4.0",
+			"shape":   "octagon",
 		}
 		if err := root.AddNode("G", bridge, attr); err != nil {
 			return "", err
@@ -44,7 +45,9 @@ func GenerateGraph(m map[string][]pkg.Pair, vpairs []pkg.Pair, bm map[string]*ne
 					attr := map[string]string{
 						"label":   fmt.Sprintf("NetNS: %s", vp.NetNsName),
 						"style":   "filled",
+						"color":   "grey",
 						"nodesep": "4.0",
+						"shape":   "box",
 					}
 
 					if err := root.AddSubGraph("G", sub.Name, attr); err != nil {
@@ -64,6 +67,9 @@ func GenerateGraph(m map[string][]pkg.Pair, vpairs []pkg.Pair, bm map[string]*ne
 				vethInNsName := fmt.Sprintf("%s_%d", vp.PeerInNetns, i)
 				if err := root.AddNode(sub.Name, vethInNsName, map[string]string{
 					"label": vp.PeerInNetns,
+					"shape": "oval",
+					"color": "white",
+					"style": "filled",
 				}); err != nil {
 					return "", err
 				}
@@ -91,6 +97,14 @@ func GenerateGraph(m map[string][]pkg.Pair, vpairs []pkg.Pair, bm map[string]*ne
 			}
 		}
 	}
+
+	// visited := make(map[string]struct{})
+	// for _, vp := range vpairs {
+	// 	root.AddNode("G", vp.Veth, map[string]string{"label": vp.Veth}) //nolint:errcheck
+	// 	visited[vp.Veth] = struct{}{}
+	// 	root.AddNode("G", vp.Veth, map[string]string{"label": vp.Veth}) //nolint:errcheck
+	// 	visited[vp.Peer] = struct{}{}
+	// }
 
 	return root.String(), nil
 }

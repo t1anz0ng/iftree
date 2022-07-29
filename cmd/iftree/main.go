@@ -64,6 +64,7 @@ func main() {
 				log.Fatal(err)
 			}
 			if link.Attrs().MasterIndex == -1 || veth.MasterIndex == 0 {
+
 				p := pkg.Pair{
 					Veth:    veth.Name,
 					Peer:    veth.PeerName,
