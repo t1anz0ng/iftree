@@ -6,9 +6,9 @@ import (
 	"os"
 	"runtime"
 	"syscall"
-	"text/tabwriter"
 
 	"github.com/containerd/nerdctl/pkg/rootlessutil"
+	"github.com/fatih/color"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"github.com/vishvananda/netlink"
@@ -16,17 +16,48 @@ import (
 
 	"github.com/TianZong48/iftree/pkg"
 	"github.com/TianZong48/iftree/pkg/formatter"
-	"github.com/TianZong48/iftree/pkg/graph"
 	"github.com/TianZong48/iftree/pkg/netutil"
 )
 
 var (
-	debug   = pflag.BoolP("debug", "d", false, "print debug message")
-	isGraph = pflag.BoolP("graph", "g", false, "output in graphviz dot language(https://graphviz.org/doc/info/lang.html")
+	debug       = pflag.BoolP("debug", "d", false, "print debug message")
+	oGraph      = pflag.BoolP("graph", "g", false, "output in graphviz dot language(https://graphviz.org/doc/info/lang.html")
+	oTable      = pflag.BoolP("table", "t", false, "output in table")
+	flagNoColor = pflag.Bool("no-color", false, "Disable color output")
+	help        = pflag.BoolP("help", "h", false, "")
 )
 
+func init() {
+	pflag.Usage = func() {
+		fmt.Println(`Usage:
+  iftree [options]
+    -d, --debug   print debug message
+    -g, --graph   output in graphviz dot language(https://graphviz.org/doc/info/lang.html
+    -t, --table   output in table
+	--no-color    disable color output
+Help Options:
+    -h, --help       Show this help message`)
+	}
+	if *flagNoColor {
+		color.NoColor = true // disables colorized output
+	}
+}
+
+func helper() error {
+	if *oGraph && *oTable {
+		return fmt.Errorf(`only one of "graph", or "table" can be set`)
+	}
+	if *help {
+		pflag.Usage()
+		os.Exit(0)
+	}
+	return nil
+}
 func main() {
 	pflag.Parse()
+	if err := helper(); err != nil {
+		log.Fatal(err)
+	}
 	if rootlessutil.IsRootless() {
 		log.Error("iftree must be run as root to enter ns")
 		os.Exit(1)
@@ -38,6 +69,7 @@ func main() {
 	}
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
+
 	netNsMap, err := netutil.NetNsMap()
 	if err != nil {
 		log.Fatal(err)
@@ -47,10 +79,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// master link
-	vm := make(map[string][]pkg.Pair)
-	vpairs := []pkg.Pair{}
-	bm := make(map[string]*net.IP)
+
+	vm := make(map[string][]pkg.Node) // map bridge <-> veth paris
+	vpairs := []pkg.Node{}            // unused veth paris
+	bm := make(map[string]*net.IP)    // bridge ip
+	los := []pkg.Node{}               // loopback
 
 	for _, link := range ll {
 		veth, ok := link.(*netlink.Veth)
@@ -64,12 +97,21 @@ func main() {
 				log.Fatal(err)
 			}
 			if link.Attrs().MasterIndex == -1 || veth.MasterIndex == 0 {
-				p := pkg.Pair{
-					Veth:    veth.Name,
-					Peer:    veth.PeerName,
-					PeerId:  peerIdx,
-					NetNsID: veth.NetNsID}
-				vpairs = append(vpairs, p)
+				if veth.PeerName == "" {
+					p, err := netlink.LinkByIndex(peerIdx)
+					if err != nil {
+						log.Fatal(err)
+					}
+					veth.PeerName = p.Attrs().Name
+				}
+
+				vpairs = append(vpairs,
+					pkg.Node{
+						Type:    pkg.VethType,
+						Veth:    veth.Name,
+						Peer:    veth.PeerName,
+						PeerId:  peerIdx,
+						NetNsID: veth.NetNsID})
 				continue
 			}
 
@@ -85,20 +127,31 @@ func main() {
 			bridge := master.Attrs().Name
 			v, ok := vm[bridge]
 			if !ok {
-				vm[bridge] = []pkg.Pair{}
+				vm[bridge] = []pkg.Node{}
 			}
-			pair := pkg.Pair{
+			pair := pkg.Node{
+				Type:    pkg.VethType,
 				Veth:    veth.Name,
 				PeerId:  peerIdx,
 				NetNsID: veth.NetNsID,
 			}
 			if peerNetNs, ok := netNsMap[veth.NetNsID]; ok {
-				peerInNs, err := netutil.GetPeerInNs(peerNetNs, peerIdx, origin)
+				peerInNs, err := netutil.GetPeerInNs(peerNetNs, origin, peerIdx)
 				if err != nil {
 					log.Fatal(err)
 				}
 				pair.NetNsName = peerNetNs
-				pair.PeerInNetns = peerInNs
+				pair.PeerNameInNetns = peerInNs.Attrs().Name
+				pair.Status = peerInNs.Attrs().OperState.String()
+
+				lo, err := netutil.GetLoInNs(peerNetNs, origin)
+				if err == nil && lo != nil {
+					los = append(los, pkg.Node{
+						Type:      pkg.LoType,
+						NetNsName: peerNetNs,
+						Status:    lo.Attrs().OperState.String(),
+					})
+				}
 			} else {
 				pair.Orphaned = true
 			}
@@ -118,18 +171,27 @@ func main() {
 		}
 
 	}
-	if *isGraph {
-		output, err := graph.GenerateGraph(vm, vpairs, bm)
+	if *oGraph {
+		output, err := formatter.Graph(vm, vpairs, los, bm)
 		if err != nil {
 			log.Fatal(err)
 		}
 		fmt.Fprintln(os.Stdout, output)
 		return
 	}
-	w := tabwriter.NewWriter(os.Stdout, 4, 8, 4, ' ', 0)
-	if err := formatter.Print(w, vm, netNsMap, vpairs); err != nil {
+	if *oTable {
+		err := formatter.Table(os.Stdout, vm)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if err := formatter.TableParis(os.Stdout, vpairs); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+
+	if err := formatter.Print(os.Stdout, vm, netNsMap, vpairs); err != nil {
 		log.Fatal(err)
 	}
-	w.Flush()
 
 }
