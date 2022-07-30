@@ -9,6 +9,14 @@ The intent is for understanding container networks :D
 
 ![networ-devices](./sample.jpg)
 
+### features
+
+- [x] visualize Veth/bridge connections
+- [x] support graphviz
+- [ ] rich text
+- [ ] ascii graph
+- [ ] support more networking device
+
 ## usage
 
 ### graph
@@ -69,14 +77,3 @@ VETH        PEER        NETNSID
 veth-tt1    veth-tt     -1
 veth-tt     veth-tt1    -1
 ```
-
-
----
-
-### roadmap
-
-- [x] show peer name in container
-- [x] graphviz
-- [ ] rich text
-- [ ] topo relation in ascii graph
-- [ ] support more networking device
