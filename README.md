@@ -1,12 +1,20 @@
+
+
+<div align="center">
+
+# ☘️ iftree
+
+`iftree` command visulize local network interfaces.
+
+intent for better understanding container networks :D
+
 [![golangci-lint](https://github.com/TianZong48/iftree/actions/workflows/golangci-lint.yml/badge.svg?branch=main)](https://github.com/TianZong48/iftree/actions/workflows/golangci-lint.yml)
 [![CodeQL](https://github.com/TianZong48/iftree/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/TianZong48/iftree/actions/workflows/codeql-analysis.yml)
 [![Go Report](https://goreportcard.com/badge/github.com/TianZong48/iftree)](https://goreportcard.com/badge/github.com/TianZong48/iftree)
 
-# iftree
+</div>
 
-CLI, easy way to illustrate local network interface.
 
-The intent is for understanding container networks :D
 
 ![networ-devices](./sample.jpg)
 
@@ -92,24 +100,37 @@ veth-tt     veth-tt1    -1
 ### table
 
 ```
-sudo go run cmd/iftree/main.go --table
-+---+-------------+------------------------------------+--------------+-------------------+
-|   | BRIDGE      | NETNS                              | VETH         | IFNAME(CONTAINER) |
-+---+-------------+------------------------------------+--------------+-------------------+
-| 1 | br0         | /var/run/netns/netns0              | veth0        | ceth0             |
-+---+-------------+------------------------------------+--------------+-------------------+
-| 2 | docker0     | /var/run/docker/netns/415d70663520 | veth08e8cd7  | eth0              |
-+---+-------------+------------------------------------+--------------+-------------------+
-| 3 | cni_bridge0 | /var/run/netns/123456              | veth57e09f05 | eth13             |
-+---+-------------+------------------------------------+--------------+-------------------+
-| 4 | cni_br      | /var/run/netns/123                 | veth5e41415a | eth1              |
-+---+             |                                    +--------------+-------------------+
-| 5 |             |                                    | veth90c9f5fa | eth2              |
-+---+             |                                    +--------------+-------------------+
-| 6 |             |                                    | veth385ac3bb | eth3              |
-+---+             +------------------------------------+--------------+-------------------+
-| 7 |             | /var/run/netns/321                 | veth6328d76d | eth1              |
-+---+             +------------------------------------+--------------+-------------------+
-| 8 |             | /var/run/docker/netns/415d70663520 | veth319e1bda | eth22             |
-+---+-------------+------------------------------------+--------------+-------------------+
+# sudo iftree --table
+╭─────────────────────────────────────────────────────────────────────────────────────────╮
+│ bridge <---> veth <---> veth-in container, GROUP BY NetNS                               │
+├───┬─────────────┬────────────────────────────────────┬──────────────┬───────────────────┤
+│   │ BRIDGE      │ NETNS                              │ VETH         │ IFNAME(CONTAINER) │
+├───┼─────────────┼────────────────────────────────────┼──────────────┼───────────────────┤
+│ 1 │ cni_bridge0 │ /var/run/netns/123456              │ veth57e09f05 │ eth13             │
+├───┼─────────────┼────────────────────────────────────┼──────────────┼───────────────────┤
+│ 2 │ cni_br      │ /var/run/netns/123                 │ veth5e41415a │ eth1              │
+├───┤             │                                    ├──────────────┼───────────────────┤
+│ 3 │             │                                    │ veth90c9f5fa │ eth2              │
+├───┤             │                                    ├──────────────┼───────────────────┤
+│ 4 │             │                                    │ veth385ac3bb │ eth3              │
+├───┤             ├────────────────────────────────────┼──────────────┼───────────────────┤
+│ 5 │             │ /var/run/netns/321                 │ veth6328d76d │ eth1              │
+├───┤             ├────────────────────────────────────┼──────────────┼───────────────────┤
+│ 6 │             │ /var/run/docker/netns/415d70663520 │ veth319e1bda │ eth22             │
+├───┼─────────────┼────────────────────────────────────┼──────────────┼───────────────────┤
+│ 7 │ br0         │ /var/run/netns/netns0              │ veth0        │ ceth0             │
+├───┼─────────────┼────────────────────────────────────┼──────────────┼───────────────────┤
+│ 8 │ docker0     │ /var/run/docker/netns/415d70663520 │ veth08e8cd7  │ eth0              │
+╰───┴─────────────┴────────────────────────────────────┴──────────────┴───────────────────╯
+
+╭─────────────────────────╮
+│ unused veth pairs (expe │
+│ rimental)               │
+├───┬──────────┬──────────┤
+│   │ VETH     │ PAIR     │
+├───┼──────────┼──────────┤
+│ 1 │ veth-tt1 │ veth-tt  │
+├───┼──────────┼──────────┤
+│ 2 │ veth-tt  │ veth-tt1 │
+╰───┴──────────┴──────────╯
 ```
