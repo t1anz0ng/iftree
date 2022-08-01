@@ -69,6 +69,7 @@ func main() {
 	}
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
+
 	netNsMap, err := netutil.NetNsMap()
 	if err != nil {
 		log.Fatal(err)

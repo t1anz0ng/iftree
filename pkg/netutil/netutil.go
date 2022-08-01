@@ -19,12 +19,7 @@ func NetNsMap() (map[int]string, error) {
 
 	m := make(map[int]string)
 	for _, path := range nsArr {
-		netnsFd, err := netns.GetFromPath(path)
-		if err != nil {
-			return nil, errors.Wrapf(err, "fail get netns from path %s", path)
-		}
-
-		id, err := netlink.GetNetNsIdByFd(int(netnsFd))
+		id, err := NsidFromPath(path)
 		if err != nil {
 			return nil, err
 		}
@@ -34,6 +29,18 @@ func NetNsMap() (map[int]string, error) {
 		}
 	}
 	return m, nil
+}
+func NsidFromPath(path string) (int, error) {
+	netnsFd, err := netns.GetFromPath(path)
+	if err != nil {
+		return 0, errors.Wrapf(err, "fail get netns from path %s", path)
+	}
+
+	id, err := netlink.GetNetNsIdByFd(int(netnsFd))
+	if err != nil {
+		return 0, err
+	}
+	return id, nil
 }
 
 func listNetNsPath() ([]string, error) {
