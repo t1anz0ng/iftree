@@ -58,30 +58,9 @@ generate image using `dot`(http://www.graphviz.org/download/#executable-packages
 ### text
 
 ```
-# sudo go run cmd/iftree/main.go
-╭─ cni_bridge0    up
-│  ╰─ /var/run/netns/123456
-│     ╰─ veth57e09f05    eth13
-├─ cni_br    up
-│  ├─ /var/run/netns/123
-│  │  ├─ veth5e41415a    eth1
-│  │  ├─ veth90c9f5fa    eth2
-│  │  ╰─ veth385ac3bb    eth3
-│  ├─ /var/run/netns/321
-│  │  ╰─ veth6328d76d    eth1
-│  ╰─ /var/run/docker/netns/415d70663520
-│     ╰─ veth319e1bda    eth22
-├─ br0    up
-│  ╰─ /var/run/netns/netns0
-│     ╰─ veth0    ceth0
-╰─ docker0    up
-   ╰─ /var/run/docker/netns/415d70663520
-      ╰─ veth08e8cd7    eth0
-----------------------------------------------------
-unused veth pairs
-╭─ veth-tt1 <----> veth-tt
-╰─ veth-tt <----> veth-tt1
+sudo go run cmd/iftree/main.go
 ```
+![networ-devices](./sample-term.png)
 
 ### table
 

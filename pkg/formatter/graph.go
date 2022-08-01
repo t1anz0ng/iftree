@@ -57,7 +57,7 @@ func Graph(m map[string][]pkg.Node, vpairs, los []pkg.Node, bm map[string]*net.I
 					}
 				}
 				if err := root.AddNode("G", vp.Veth, map[string]string{
-					"label": vp.Veth,
+					"label": vp.Label(),
 					"style": "filled",
 				}); err != nil {
 					return "", err
@@ -109,7 +109,7 @@ func Graph(m map[string][]pkg.Node, vpairs, los []pkg.Node, bm map[string]*net.I
 			if err := root.AddNode(sub.Name,
 				fmt.Sprintf("%s-lo", sub.Name),
 				map[string]string{
-					"label": "lo",
+					"label": lo.Label(),
 					"shape": "oval",
 					"style": "filled",
 					"color": "#f0c674",

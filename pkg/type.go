@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"net"
+	"strings"
 )
 
 type NodeType int
@@ -35,11 +36,21 @@ type Node struct {
 	Master          *Bridge
 
 	// general
+	Name   string
 	Status string
 }
 
-func (n *Node) String() string {
-	return typeMap[n.Type]
+func (n *Node) Label() string {
+	//FIXME: deprecate VETH
+	if n.Name == "" {
+		n.Name = n.Veth
+	}
+	switch n.Type {
+	case LoType:
+		return "lo"
+	default:
+		return strings.TrimSpace(n.Name)
+	}
 }
 
 type Bridge struct {
