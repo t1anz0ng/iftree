@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )
@@ -60,20 +59,30 @@ func listNetNsPath() ([]string, error) {
 	return ns, nil
 }
 
-func GetPeerInNs(ns string, peerIdx int, origin netns.NsHandle) (string, error) {
+// GetPeerInNs enter target netns to get veth peer's name
+// root needed
+func GetPeerInNs(ns string, origin netns.NsHandle, peerIdx int) (netlink.Link, error) {
+	return NetnsGetName(ns, origin, func() (netlink.Link, error) {
+		return netlink.LinkByIndex(peerIdx)
+	})
+}
+
+func GetLoInNs(ns string, origin netns.NsHandle) (netlink.Link, error) {
+	return NetnsGetName(ns, origin, func() (netlink.Link, error) {
+		return netlink.LinkByName("lo")
+	})
+}
+
+func NetnsGetName(ns string, origin netns.NsHandle, fn func() (netlink.Link, error)) (link netlink.Link, err error) {
 	hd, err := netns.GetFromPath(ns)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	if err := netns.Set(hd); err != nil {
-		return "", err
-	}
-	defer netns.Set(origin) //nolint: errcheck
-
-	peerInNs, err := netlink.LinkByIndex(peerIdx)
-	if err != nil {
-		return "", err
+		return nil, err
 	}
 	// Switch back to the original namespace
-	return peerInNs.Attrs().Name, nil
+
+	defer netns.Set(origin) //nolint: errcheck
+	return fn()
 }

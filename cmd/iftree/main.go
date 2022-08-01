@@ -78,13 +78,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// master link
-	// map bridge <-> veth paris
-	vm := make(map[string][]pkg.Pair)
-	// unused veth paris
-	vpairs := []pkg.Pair{}
-	// bridge ip
-	bm := make(map[string]*net.IP)
+
+	vm := make(map[string][]pkg.Node) // map bridge <-> veth paris
+	vpairs := []pkg.Node{}            // unused veth paris
+	bm := make(map[string]*net.IP)    // bridge ip
+	los := []pkg.Node{}               // loopback
 
 	for _, link := range ll {
 		veth, ok := link.(*netlink.Veth)
@@ -105,12 +103,14 @@ func main() {
 					}
 					veth.PeerName = p.Attrs().Name
 				}
-				p := pkg.Pair{
-					Veth:    veth.Name,
-					Peer:    veth.PeerName,
-					PeerId:  peerIdx,
-					NetNsID: veth.NetNsID}
-				vpairs = append(vpairs, p)
+
+				vpairs = append(vpairs,
+					pkg.Node{
+						Type:    pkg.VethType,
+						Veth:    veth.Name,
+						Peer:    veth.PeerName,
+						PeerId:  peerIdx,
+						NetNsID: veth.NetNsID})
 				continue
 			}
 
@@ -126,20 +126,31 @@ func main() {
 			bridge := master.Attrs().Name
 			v, ok := vm[bridge]
 			if !ok {
-				vm[bridge] = []pkg.Pair{}
+				vm[bridge] = []pkg.Node{}
 			}
-			pair := pkg.Pair{
+			pair := pkg.Node{
+				Type:    pkg.VethType,
 				Veth:    veth.Name,
 				PeerId:  peerIdx,
 				NetNsID: veth.NetNsID,
 			}
 			if peerNetNs, ok := netNsMap[veth.NetNsID]; ok {
-				peerInNs, err := netutil.GetPeerInNs(peerNetNs, peerIdx, origin)
+				peerInNs, err := netutil.GetPeerInNs(peerNetNs, origin, peerIdx)
 				if err != nil {
 					log.Fatal(err)
 				}
 				pair.NetNsName = peerNetNs
-				pair.PeerInNetns = peerInNs
+				pair.PeerNameInNetns = peerInNs.Attrs().Name
+				pair.Status = peerInNs.Attrs().OperState.String()
+
+				lo, err := netutil.GetLoInNs(peerNetNs, origin)
+				if err == nil && lo != nil {
+					los = append(los, pkg.Node{
+						Type:      pkg.LoType,
+						NetNsName: peerNetNs,
+						Status:    lo.Attrs().OperState.String(),
+					})
+				}
 			} else {
 				pair.Orphaned = true
 			}
@@ -160,7 +171,7 @@ func main() {
 
 	}
 	if *oGraph {
-		output, err := formatter.Graph(vm, vpairs, bm)
+		output, err := formatter.Graph(vm, vpairs, los, bm)
 		if err != nil {
 			log.Fatal(err)
 		}

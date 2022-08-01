@@ -8,14 +8,14 @@ import (
 	"github.com/TianZong48/iftree/pkg"
 )
 
-func Table(w io.Writer, m map[string][]pkg.Pair) error {
+func Table(w io.Writer, m map[string][]pkg.Node) error {
 	t := table.NewWriter()
 	t.SetOutputMirror(w)
 	t.SetTitle("bridge <---> veth <---> veth-in container, GROUP BY NetNS")
 	t.AppendHeader(table.Row{"bridge", "netns", "veth", "ifname(container)"})
 	for bridge, v := range m {
 		for _, vp := range v {
-			t.AppendRow(table.Row{bridge, vp.NetNsName, vp.Veth, vp.PeerInNetns})
+			t.AppendRow(table.Row{bridge, vp.NetNsName, vp.Veth, vp.PeerNameInNetns})
 			t.AppendSeparator()
 		}
 	}
@@ -30,7 +30,7 @@ func Table(w io.Writer, m map[string][]pkg.Pair) error {
 	return nil
 }
 
-func TableParis(w io.WriteCloser, vpairs []pkg.Pair) error {
+func TableParis(w io.WriteCloser, vpairs []pkg.Node) error {
 	t := table.NewWriter()
 	t.SetOutputMirror(w)
 	t.SetTitle("unused veth pairs (experimental)")

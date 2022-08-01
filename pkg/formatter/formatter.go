@@ -12,7 +12,7 @@ import (
 	"github.com/TianZong48/iftree/pkg"
 )
 
-func Print(w io.Writer, vm map[string][]pkg.Pair, netNsMap map[int]string, vpairs []pkg.Pair) error {
+func Print(w io.Writer, vm map[string][]pkg.Node, netNsMap map[int]string, vpairs []pkg.Node) error {
 	lw := list.NewWriter()
 	lw.SetOutputMirror(w)
 	for k, v := range vm {
@@ -20,8 +20,6 @@ func Print(w io.Writer, vm map[string][]pkg.Pair, netNsMap map[int]string, vpair
 		if err != nil {
 			log.Fatal(err)
 		}
-		// fmt.Fprintln(w, "----------------------------------------------------")
-		// lw.AppendItem(("BRIDGE: %s\t%s", k, master.Attrs().OperState))
 		lw.AppendItem(fmt.Sprintf("%s\t%s",
 			color.New(color.Bold, color.FgYellow).Sprint(k),
 			color.New(color.Bold, color.FgYellow).Sprint((master.Attrs().OperState))))
@@ -37,7 +35,7 @@ func Print(w io.Writer, vm map[string][]pkg.Pair, netNsMap map[int]string, vpair
 					}
 					lw.AppendItem(fmt.Sprintf("%s\t%s",
 						color.New(color.FgBlue).Sprint(p.Veth),
-						color.New(color.FgBlue).Sprint(p.PeerInNetns)))
+						color.New(color.FgBlue).Sprint(p.PeerNameInNetns)))
 				}
 			}
 			if f {

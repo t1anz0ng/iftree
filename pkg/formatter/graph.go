@@ -10,7 +10,7 @@ import (
 	"github.com/TianZong48/iftree/pkg"
 )
 
-func Graph(m map[string][]pkg.Pair, vpairs []pkg.Pair, bm map[string]*net.IP) (string, error) {
+func Graph(m map[string][]pkg.Node, vpairs, los []pkg.Node, bm map[string]*net.IP) (string, error) {
 
 	root := gographviz.NewEscape()
 	if err := root.SetName("G"); err != nil {
@@ -18,6 +18,8 @@ func Graph(m map[string][]pkg.Pair, vpairs []pkg.Pair, bm map[string]*net.IP) (s
 	}
 	root.AddAttr("G", "layout", "fdp")    //nolint:errcheck
 	root.AddAttr("G", "splines", "ortho") //nolint:errcheck
+	root.AddAttr("G", "ratio", "0.7")     //nolint:errcheck
+	subGraphM := make(map[string]*gographviz.SubGraph)
 
 	for bridge, v := range m {
 		labels := []string{bridge}
@@ -25,23 +27,23 @@ func Graph(m map[string][]pkg.Pair, vpairs []pkg.Pair, bm map[string]*net.IP) (s
 			labels = append(labels, ip.String())
 		}
 		attr := map[string]string{
-			"label":   strings.Join(labels, "\\n"),
-			"nodesep": "4.0",
-			"shape":   "octagon",
-			"style":   "filled",
+			"label":    strings.Join(labels, "\\n"),
+			"nodesep":  "4.0",
+			"shape":    "octagon",
+			"style":    "filled",
+			"fontsize": "16pt",
 		}
 		if err := root.AddNode("G", bridge, attr); err != nil {
 			return "", err
 		}
-		m := make(map[string]*gographviz.SubGraph)
 		for i, vp := range v {
 			// group by vp.NetNsName
 			if vp.NetNsName != "" {
-				sub, ok := m[vp.NetNsName]
+				sub, ok := subGraphM[vp.NetNsName]
 				if !ok {
 					// init subgraph for netns
 					sub = gographviz.NewSubGraph(fmt.Sprintf("cluster%s%c", bridge, 'A'+i))
-					m[vp.NetNsName] = sub
+					subGraphM[vp.NetNsName] = sub
 					attr := map[string]string{
 						"label":   fmt.Sprintf("NetNS\n%s", vp.NetNsName),
 						"style":   "filled",
@@ -65,9 +67,9 @@ func Graph(m map[string][]pkg.Pair, vpairs []pkg.Pair, bm map[string]*net.IP) (s
 				}); err != nil {
 					return "", err
 				}
-				vethInNsName := fmt.Sprintf("%s_%d", vp.PeerInNetns, i)
+				vethInNsName := fmt.Sprintf("%s_%d", vp.PeerNameInNetns, i)
 				if err := root.AddNode(sub.Name, vethInNsName, map[string]string{
-					"label": vp.PeerInNetns,
+					"label": vp.PeerNameInNetns,
 					"shape": "oval",
 					"style": "filled",
 					"color": "#f0c674",
@@ -96,6 +98,23 @@ func Graph(m map[string][]pkg.Pair, vpairs []pkg.Pair, bm map[string]*net.IP) (s
 				}); err != nil {
 					return "", err
 				}
+			}
+		}
+	}
+	for _, lo := range los {
+		if lo.Status == "" {
+			continue
+		}
+		if sub, ok := subGraphM[lo.NetNsName]; ok {
+			if err := root.AddNode(sub.Name,
+				fmt.Sprintf("%s-lo", sub.Name),
+				map[string]string{
+					"label": "lo",
+					"shape": "oval",
+					"style": "filled",
+					"color": "#f0c674",
+				}); err != nil {
+				return "", err
 			}
 		}
 	}
