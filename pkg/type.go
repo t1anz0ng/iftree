@@ -14,7 +14,7 @@ const (
 )
 
 var (
-	typeMap = map[NodeType]string{
+	typeMap = map[NodeType]string{ //nolint
 		VethType:   "veth",
 		BridgeType: "bridge",
 		LoType:     "lo",
