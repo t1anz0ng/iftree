@@ -11,19 +11,30 @@ intent for better understanding container networks :D
 [![golangci-lint](https://github.com/TianZong48/iftree/actions/workflows/golangci-lint.yml/badge.svg?branch=main)](https://github.com/TianZong48/iftree/actions/workflows/golangci-lint.yml)
 [![CodeQL](https://github.com/TianZong48/iftree/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/TianZong48/iftree/actions/workflows/codeql-analysis.yml)
 [![Go Report](https://goreportcard.com/badge/github.com/TianZong48/iftree)](https://goreportcard.com/badge/github.com/TianZong48/iftree)
-
 </div>
 
+---
 
+<img
+  src="./sample.jpg"
+  alt="iftree --graph"
+  width="60%"
+  align="right"
+/>
 
-![networ-devices](./sample.jpg)
+<img
+  src="./sample-term.png"
+  alt="iftree"
+  width="60%"
+  align="right"
+/>
 
-### features
+**Features**
 
 - [x] visualize Veth/bridge connections
 - [x] support graphviz
 - [x] table output
-- [ ] rich text
+- [x] rich text
 - [ ] ascii graph
 - [ ] support more networking device
 
@@ -39,6 +50,13 @@ Usage:
 Help Options:
     -h, --help       Show this help message
 ```
+
+### text
+
+```
+sudo go run cmd/iftree/main.go
+```
+
 ### graph
 
 Create an ouput image with [graphviz](https://www.graphviz.org/) compatible renderer.
@@ -53,14 +71,6 @@ generate image using `dot`(http://www.graphviz.org/download/#executable-packages
 ```
 # sudo go run cmd/iftree/main.go --graph | dot -Tpng  > output.png
 ```
-
-
-### text
-
-```
-sudo go run cmd/iftree/main.go
-```
-![networ-devices](./sample-term.png)
 
 ### table
 
