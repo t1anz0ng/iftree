@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -37,7 +36,7 @@ func init() {
 Help Options:
     -h, --help       Show this help message`)
 	}
-	pflag.ErrHelp = errors.New(``)
+	pflag.BoolP("help", "h", false, "")
 }
 
 func helper() error {
