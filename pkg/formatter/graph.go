@@ -1,4 +1,4 @@
-package graph
+package formatter
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"github.com/TianZong48/iftree/pkg"
 )
 
-func GenerateGraph(m map[string][]pkg.Pair, vpairs []pkg.Pair, bm map[string]*net.IP) (string, error) {
+func Graph(m map[string][]pkg.Pair, vpairs []pkg.Pair, bm map[string]*net.IP) (string, error) {
 
 	root := gographviz.NewEscape()
 	if err := root.SetName("G"); err != nil {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -16,17 +17,41 @@ import (
 
 	"github.com/TianZong48/iftree/pkg"
 	"github.com/TianZong48/iftree/pkg/formatter"
-	"github.com/TianZong48/iftree/pkg/graph"
 	"github.com/TianZong48/iftree/pkg/netutil"
 )
 
 var (
-	debug   = pflag.BoolP("debug", "d", false, "print debug message")
-	isGraph = pflag.BoolP("graph", "g", false, "output in graphviz dot language(https://graphviz.org/doc/info/lang.html")
+	debug    = pflag.BoolP("debug", "d", false, "print debug message")
+	oGraph   = pflag.BoolP("graph", "g", false, "output in graphviz dot language(https://graphviz.org/doc/info/lang.html")
+	oTable   = pflag.BoolP("table", "t", false, "output in table")
+	richText = pflag.BoolP("plain", "", true, "output colorful text, default is true")
 )
 
+func init() {
+	pflag.Usage = func() {
+		fmt.Println(`Usage:
+  iftree [options]
+    -d, --debug   print debug message
+    -g, --graph   output in graphviz dot language(https://graphviz.org/doc/info/lang.html
+    -t, --table   output in table
+Help Options:
+    -h, --help       Show this help message`)
+	}
+	pflag.ErrHelp = errors.New(``)
+}
+
+func helper() error {
+	if *oGraph && *oTable {
+		return fmt.Errorf(`only one of "graph", or "table" can be set`)
+	}
+	_ = richText
+	return nil
+}
 func main() {
 	pflag.Parse()
+	if err := helper(); err != nil {
+		log.Fatal(err)
+	}
 	if rootlessutil.IsRootless() {
 		log.Error("iftree must be run as root to enter ns")
 		os.Exit(1)
@@ -48,8 +73,11 @@ func main() {
 		log.Fatal(err)
 	}
 	// master link
+	// map bridge <-> veth paris
 	vm := make(map[string][]pkg.Pair)
+	// unused veth paris
 	vpairs := []pkg.Pair{}
+	// bridge ip
 	bm := make(map[string]*net.IP)
 
 	for _, link := range ll {
@@ -125,12 +153,19 @@ func main() {
 		}
 
 	}
-	if *isGraph {
-		output, err := graph.GenerateGraph(vm, vpairs, bm)
+	if *oGraph {
+		output, err := formatter.Graph(vm, vpairs, bm)
 		if err != nil {
 			log.Fatal(err)
 		}
 		fmt.Fprintln(os.Stdout, output)
+		return
+	}
+	if *oTable {
+		err := formatter.Table(os.Stdout, vm, vpairs)
+		if err != nil {
+			log.Fatal(err)
+		}
 		return
 	}
 	w := tabwriter.NewWriter(os.Stdout, 4, 8, 4, ' ', 0)
