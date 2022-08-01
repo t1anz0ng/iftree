@@ -6,7 +6,6 @@ import (
 	"os"
 	"runtime"
 	"syscall"
-	"text/tabwriter"
 
 	"github.com/containerd/nerdctl/pkg/rootlessutil"
 	log "github.com/sirupsen/logrus"
@@ -161,16 +160,18 @@ func main() {
 		return
 	}
 	if *oTable {
-		err := formatter.Table(os.Stdout, vm, vpairs)
+		err := formatter.Table(os.Stdout, vm)
 		if err != nil {
+			log.Fatal(err)
+		}
+		if err := formatter.TableParis(os.Stdout, vpairs); err != nil {
 			log.Fatal(err)
 		}
 		return
 	}
-	w := tabwriter.NewWriter(os.Stdout, 4, 8, 4, ' ', 0)
-	if err := formatter.Print(w, vm, netNsMap, vpairs); err != nil {
+
+	if err := formatter.Print(os.Stdout, vm, netNsMap, vpairs); err != nil {
 		log.Fatal(err)
 	}
-	w.Flush()
 
 }

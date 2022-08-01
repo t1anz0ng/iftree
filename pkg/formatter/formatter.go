@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/jedib0t/go-pretty/v6/list"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 
@@ -11,35 +12,46 @@ import (
 )
 
 func Print(w io.Writer, vm map[string][]pkg.Pair, netNsMap map[int]string, vpairs []pkg.Pair) error {
+	lw := list.NewWriter()
+	lw.SetOutputMirror(w)
 	for k, v := range vm {
 		master, err := netlink.LinkByName(k)
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Fprintln(w, "----------------------------------------------------")
-		fmt.Fprintf(w, "BRIDGE: %s\t%s\n", k, master.Attrs().OperState)
-		fmt.Fprintf(w, "netnsName\tveth\tpeerInNetns\tnetnsID\n")
+		// fmt.Fprintln(w, "----------------------------------------------------")
+		lw.AppendItem(fmt.Sprintf("BRIDGE: %s\t%s", k, master.Attrs().OperState))
+		lw.Indent()
 		for _, nsName := range netNsMap {
 			f := false
 			for _, p := range v {
 				if nsName == p.NetNsName {
 					if !f {
-						fmt.Fprintf(w, "└────%s\n", nsName)
+						lw.AppendItem(nsName)
 						f = true
+						lw.Indent()
 					}
-					fmt.Fprintf(w, "     ├────%s\t%s\t%d\n", p.Veth, p.PeerInNetns, p.NetNsID)
+					lw.AppendItem(fmt.Sprintf("%s\t%s", p.Veth, p.PeerInNetns))
 				}
 			}
+			if f {
+				lw.UnIndent()
+			}
 		}
-		fmt.Fprintf(w, "\n")
-
+		lw.UnIndent()
 	}
+
+	lw.SetStyle(list.StyleConnectedRounded)
+	lw.Render()
+
 	fmt.Fprintln(w, "----------------------------------------------------")
 	fmt.Fprintln(w, "unused veth pairs")
-	fmt.Fprintf(w, "VETH\tPEER\tNETNSID\n")
-	for _, p := range vpairs {
-		fmt.Fprintf(w, "%s\t%s\t%d\n", p.Veth, p.Peer, p.NetNsID)
+	lw.Reset()
+	lw.SetStyle(list.StyleConnectedRounded)
+	for _, veth := range vpairs {
+		lw.AppendItem(fmt.Sprintf("%s <----> %s", veth.Veth, veth.Peer))
 	}
+	lw.Render()
 
 	return nil
 }

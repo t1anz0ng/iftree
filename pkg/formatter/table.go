@@ -1,7 +1,6 @@
 package formatter
 
 import (
-	"fmt"
 	"io"
 
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -9,7 +8,7 @@ import (
 	"github.com/TianZong48/iftree/pkg"
 )
 
-func Table(w io.Writer, m map[string][]pkg.Pair, vpairs []pkg.Pair) error {
+func Table(w io.Writer, m map[string][]pkg.Pair) error {
 	t := table.NewWriter()
 	t.SetOutputMirror(w)
 	t.SetTitle("bridge <---> veth <---> veth-in container, GROUP BY NetNS")
@@ -28,19 +27,20 @@ func Table(w io.Writer, m map[string][]pkg.Pair, vpairs []pkg.Pair) error {
 	t.SetStyle(table.StyleRounded)
 	t.Render()
 
-	fmt.Fprintln(w, "") //nolint:errcheck
+	return nil
+}
 
-	t2 := table.NewWriter()
-	t2.SetOutputMirror(w)
-	t2.SetTitle("unused veth pairs (experimental)")
-	t2.AppendHeader(table.Row{"veth", "pair"})
+func TableParis(w io.WriteCloser, vpairs []pkg.Pair) error {
+	t := table.NewWriter()
+	t.SetOutputMirror(w)
+	t.SetTitle("unused veth pairs (experimental)")
+	t.AppendHeader(table.Row{"veth", "pair"})
 	for _, v := range vpairs {
-		t2.AppendRow(table.Row{v.Veth, v.Peer})
-		t2.AppendSeparator()
+		t.AppendRow(table.Row{v.Veth, v.Peer})
+		t.AppendSeparator()
 	}
-	t2.SetAutoIndex(true)
-	t2.SetStyle(table.StyleRounded)
-	t2.Render()
-
+	t.SetAutoIndex(true)
+	t.SetStyle(table.StyleRounded)
+	t.Render()
 	return nil
 }
