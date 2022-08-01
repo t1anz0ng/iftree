@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/containerd/nerdctl/pkg/rootlessutil"
+	"github.com/fatih/color"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"github.com/vishvananda/netlink"
@@ -19,10 +20,11 @@ import (
 )
 
 var (
-	debug    = pflag.BoolP("debug", "d", false, "print debug message")
-	oGraph   = pflag.BoolP("graph", "g", false, "output in graphviz dot language(https://graphviz.org/doc/info/lang.html")
-	oTable   = pflag.BoolP("table", "t", false, "output in table")
-	richText = pflag.BoolP("plain", "", true, "output colorful text, default is true")
+	debug       = pflag.BoolP("debug", "d", false, "print debug message")
+	oGraph      = pflag.BoolP("graph", "g", false, "output in graphviz dot language(https://graphviz.org/doc/info/lang.html")
+	oTable      = pflag.BoolP("table", "t", false, "output in table")
+	flagNoColor = pflag.Bool("no-color", false, "Disable color output")
+	help        = pflag.BoolP("help", "h", false, "")
 )
 
 func init() {
@@ -32,17 +34,23 @@ func init() {
     -d, --debug   print debug message
     -g, --graph   output in graphviz dot language(https://graphviz.org/doc/info/lang.html
     -t, --table   output in table
+	--no-color    disable color output
 Help Options:
     -h, --help       Show this help message`)
 	}
-	pflag.BoolP("help", "h", false, "")
+	if *flagNoColor {
+		color.NoColor = true // disables colorized output
+	}
 }
 
 func helper() error {
 	if *oGraph && *oTable {
 		return fmt.Errorf(`only one of "graph", or "table" can be set`)
 	}
-	_ = richText
+	if *help {
+		pflag.Usage()
+		os.Exit(0)
+	}
 	return nil
 }
 func main() {

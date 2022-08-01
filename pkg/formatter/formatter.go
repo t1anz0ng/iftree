@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/list"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -20,18 +21,23 @@ func Print(w io.Writer, vm map[string][]pkg.Pair, netNsMap map[int]string, vpair
 			log.Fatal(err)
 		}
 		// fmt.Fprintln(w, "----------------------------------------------------")
-		lw.AppendItem(fmt.Sprintf("BRIDGE: %s\t%s", k, master.Attrs().OperState))
+		// lw.AppendItem(("BRIDGE: %s\t%s", k, master.Attrs().OperState))
+		lw.AppendItem(fmt.Sprintf("%s\t%s",
+			color.New(color.Bold, color.FgYellow).Sprint(k),
+			color.New(color.Bold, color.FgYellow).Sprint((master.Attrs().OperState))))
 		lw.Indent()
 		for _, nsName := range netNsMap {
 			f := false
 			for _, p := range v {
 				if nsName == p.NetNsName {
 					if !f {
-						lw.AppendItem(nsName)
+						lw.AppendItem(color.New(color.FgHiMagenta).Sprint(nsName))
 						f = true
 						lw.Indent()
 					}
-					lw.AppendItem(fmt.Sprintf("%s\t%s", p.Veth, p.PeerInNetns))
+					lw.AppendItem(fmt.Sprintf("%s\t%s",
+						color.New(color.FgBlue).Sprint(p.Veth),
+						color.New(color.FgBlue).Sprint(p.PeerInNetns)))
 				}
 			}
 			if f {
