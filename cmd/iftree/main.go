@@ -32,11 +32,13 @@ var (
 	oTable = pflag.BoolP("table", "t", false, "output in table")
 
 	help = pflag.BoolP("help", "h", false, "")
+
+	version = "unknown"
 )
 
 func init() {
 	pflag.Usage = func() {
-		fmt.Println(`Usage:
+		fmt.Printf(`Usage:
 iftree [options]
 
 Example:
@@ -53,7 +55,10 @@ Example:
     -O, --output string   graph output name/path (default "output")
     -T, --gtype string    graph output type, "jpg", "png", "svg", "dot" (graphviz dot language) default "png"
 Help Options:
-  -h, --help       Show this help message`)
+  -h, --help       Show this help message
+
+version: %s
+`, version)
 	}
 }
 
