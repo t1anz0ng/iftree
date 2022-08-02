@@ -1,14 +1,17 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"runtime"
+	"strings"
 	"syscall"
 
 	"github.com/containerd/nerdctl/pkg/rootlessutil"
-	"github.com/fatih/color"
+	graphviz "github.com/goccy/go-graphviz"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"github.com/vishvananda/netlink"
@@ -20,26 +23,37 @@ import (
 )
 
 var (
-	debug       = pflag.BoolP("debug", "d", false, "print debug message")
-	oGraph      = pflag.BoolP("graph", "g", false, "output in graphviz dot language(https://graphviz.org/doc/info/lang.html")
-	oTable      = pflag.BoolP("table", "t", false, "output in table")
-	flagNoColor = pflag.Bool("no-color", false, "Disable color output")
-	help        = pflag.BoolP("help", "h", false, "")
+	debug = pflag.BoolP("debug", "d", false, "print debug message")
+
+	oGraph     = pflag.BoolP("graph", "g", false, "output in png by defaul")
+	oGraphType = pflag.StringP("gtype", "T", "png", `graph output type, "jpg", "png", "svg", "dot"(graphviz dot language(https://graphviz.org/doc/info/lang.html)`)
+	oGraphName = pflag.StringP("output", "O", "output", "graph output name/path")
+
+	oTable = pflag.BoolP("table", "t", false, "output in table")
+
+	help = pflag.BoolP("help", "h", false, "")
 )
 
 func init() {
 	pflag.Usage = func() {
 		fmt.Println(`Usage:
-  iftree [options]
-    -d, --debug   print debug message
-    -g, --graph   output in graphviz dot language(https://graphviz.org/doc/info/lang.html
-    -t, --table   output in table
-	--no-color    disable color output
+iftree [options]
+
+Example:
+  generate tree output
+    # sudo iftree 
+  generate png graph with name "output.png"
+    # sudo iftree --graph -Tpng -Ooutput.png
+  generate table output
+    # sudo iftree --table
+
+  -d, --debug   print debug message
+  -t, --table   output in table
+  -g, --graph   output in graphviz dot language(https://graphviz.org/doc/info/lang.html
+    -O, --output string   graph output name/path (default "output")
+    -T, --gtype string    graph output type, "jpg", "png", "svg", "dot" (graphviz dot language) default "png"
 Help Options:
-    -h, --help       Show this help message`)
-	}
-	if *flagNoColor {
-		color.NoColor = true // disables colorized output
+  -h, --help       Show this help message`)
 	}
 }
 
@@ -171,12 +185,45 @@ func main() {
 		}
 
 	}
+
 	if *oGraph {
+		buf := bytes.Buffer{}
 		output, err := formatter.Graph(vm, vpairs, los, bm)
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Fprintln(os.Stdout, output)
+		fmt.Fprintln(&buf, output)
+		gType := strings.ToLower(*oGraphType)
+
+		switch gType {
+		case "dot":
+			_, err = io.Copy(os.Stdout, &buf)
+		case "jpg", "png", "svg":
+			graph, errG := graphviz.ParseBytes(buf.Bytes())
+			if errG != nil {
+				log.Fatal(errG)
+			}
+			g := graphviz.New()
+			fn := fmt.Sprintf("%s.%s", *oGraphName, gType)
+			f, errF := os.Create(fn)
+			if errF != nil {
+				log.Fatal(errF)
+			}
+			defer f.Close()
+			switch gType {
+			case "jpg":
+				err = g.Render(graph, graphviz.JPG, f)
+			case "png":
+				err = g.Render(graph, graphviz.PNG, f)
+			case "svg":
+				err = g.Render(graph, graphviz.SVG, f)
+			}
+		default:
+			log.Fatal("invalid graph type")
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
 		return
 	}
 	if *oTable {

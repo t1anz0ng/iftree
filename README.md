@@ -32,24 +32,27 @@ intent for better understanding container networks :D
 
 **Features**
 
-- [x] visualize Veth/bridge connections
-- [x] support graphviz
-- [x] table output
-- [x] rich text
-- [ ] ascii graph
-- [ ] support more networking device
+- [x] **visualize** Veth/bridge connections
+- [x] **table** output
+- [x] **rich** text
+- [x] rendering **image**
+- [x] output **graphviz DOT** language
+
 
 ## usage
 
 ```
-Usage:
-  iftree [options]
-    -d, --debug   print debug message
-    -g, --graph   output in graphviz dot language(https://graphviz.org/doc/info/lang.html
-    -t, --table   output in table
-	--no-color    disable color output
-Help Options:
-    -h, --help       Show this help message
+iftree [options]
+
+Example:
+  generate tree output
+    # sudo iftree 
+  generate png graph with name "output.png"
+    # sudo iftree --graph -Tpng -Ooutput.png
+  generate image with dot
+    # sudo iftree --graph -Tdot | dot -Tpng  > output.png
+  generate table output
+    # sudo iftree --table
 ```
 
 ### text
@@ -60,17 +63,23 @@ sudo go run cmd/iftree/main.go
 
 ### graph
 
-Create an ouput image with [graphviz](https://www.graphviz.org/) compatible renderer.
+support `jpg`, `svg`, `png`
+
+```shell
+sudo iftree --graph -Tpng
+```
+
+Or create an ouput image with any [graphviz](https://www.graphviz.org/) compatible renderer.
 e.g: online editor: https://dreampuf.github.io/GraphvizOnline
 
 ```shell
-sudo go run cmd/iftree/main.go --graph 
+sudo go run cmd/iftree/main.go --graph -Tdot
 ```
 
 generate image using `dot`(http://www.graphviz.org/download/#executable-packages)
 
 ```shell
-sudo go run cmd/iftree/main.go --graph | dot -Tpng  > output.png
+sudo go run cmd/iftree/main.go --graph -Tdot | dot -Tpng  > output.png
 ```
 
 ### table
