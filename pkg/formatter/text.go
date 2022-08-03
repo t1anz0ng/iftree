@@ -13,7 +13,10 @@ import (
 	"github.com/t1anz0ng/iftree/pkg"
 )
 
-func Print(w io.Writer, vm map[string][]pkg.Node, netNsMap map[int]string, vpairs []pkg.Node) error {
+func Print(w io.Writer, vm map[string][]pkg.Node,
+	netNsMap map[int]string,
+	vpairs []pkg.Node,
+	all bool) error {
 
 	var content strings.Builder
 	var vpair strings.Builder
@@ -61,32 +64,33 @@ func Print(w io.Writer, vm map[string][]pkg.Node, netNsMap map[int]string, vpair
 	lw.SetStyle(list.StyleConnectedRounded)
 	lw.Render()
 
-	lw.Reset()
-	lw.SetOutputMirror(&vpair)
+	var contents []string
+	contents = append(contents, mainStype.Render(content.String()))
+	if all {
+		lw.Reset()
+		lw.SetOutputMirror(&vpair)
 
-	fmt.Fprintln(&vpair, lipgloss.NewStyle().
-		Background(lipgloss.Color("#F25D94")).
-		MarginLeft(5).
-		MarginRight(5).
-		Padding(0, 1).
-		Italic(true).
-		Foreground(lipgloss.Color("#FFF7DB")).
-		SetString("unused veth pairs"))
-	lw.SetStyle(list.StyleConnectedRounded)
-	for _, veth := range vpairs {
-		lw.AppendItem(fmt.Sprintf("%s%s%s", veth.Veth,
-			lipgloss.NewStyle().
-				MarginRight(1).
-				MarginLeft(1).
-				Padding(0, 1).
-				Foreground(special).SetString("<----->"),
-			veth.Peer))
+		fmt.Fprintln(&vpair, lipgloss.NewStyle().
+			Background(lipgloss.Color("#F25D94")).
+			MarginLeft(5).
+			MarginRight(5).
+			Padding(0, 1).
+			Italic(true).
+			Foreground(lipgloss.Color("#FFF7DB")).
+			SetString("unused veth pairs"))
+		lw.SetStyle(list.StyleConnectedRounded)
+		for _, veth := range vpairs {
+			lw.AppendItem(fmt.Sprintf("%s%s%s", veth.Veth,
+				lipgloss.NewStyle().
+					MarginRight(1).
+					MarginLeft(1).
+					Padding(0, 1).
+					Foreground(special).SetString("<----->"),
+				veth.Peer))
+		}
+		lw.Render()
+		contents = append(contents, vethPairStyle.Render(vpair.String()))
 	}
-	lw.Render()
-	fmt.Fprintln(w,
-		lipgloss.JoinHorizontal(
-			lipgloss.Top,
-			mainStype.Render(content.String()),
-			vethPairStyle.Render(vpair.String())))
+	fmt.Fprintln(w, lipgloss.JoinVertical(lipgloss.Top, contents...))
 	return nil
 }

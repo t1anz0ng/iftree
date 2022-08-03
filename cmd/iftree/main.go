@@ -25,9 +25,10 @@ import (
 var (
 	debug = pflag.BoolP("debug", "d", false, "print debug message")
 
-	oGraph     = pflag.BoolP("graph", "g", false, "output in png by defaul")
-	oGraphType = pflag.StringP("gtype", "T", "png", `graph output type, "jpg", "png", "svg", "dot"(graphviz dot language(https://graphviz.org/doc/info/lang.html)`)
-	oGraphName = pflag.StringP("output", "O", "output", "graph output name/path")
+	oUnusedVeths = pflag.BoolP("all", "a", false, "show all veths, including unused.")
+	oGraph       = pflag.BoolP("graph", "g", false, "output in png by defaul")
+	oGraphType   = pflag.StringP("gtype", "T", "png", `graph output type, "jpg", "png", "svg", "dot"(graphviz dot language(https://graphviz.org/doc/info/lang.html)`)
+	oGraphName   = pflag.StringP("output", "O", "output", "graph output name/path")
 
 	oTable = pflag.BoolP("table", "t", false, "output in table")
 
@@ -242,7 +243,7 @@ func main() {
 		return
 	}
 
-	if err := formatter.Print(os.Stdout, vm, netNsMap, vpairs); err != nil {
+	if err := formatter.Print(os.Stdout, vm, netNsMap, vpairs, *oUnusedVeths); err != nil {
 		log.Fatal(err)
 	}
 
