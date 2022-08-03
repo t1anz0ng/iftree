@@ -1,4 +1,4 @@
-module github.com/TianZong48/iftree
+module github.com/t1anz0ng/iftree
 
 go 1.17
 

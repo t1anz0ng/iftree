@@ -8,9 +8,9 @@
 
 intent for better understanding container networks :D
 
-[![golangci-lint](https://github.com/TianZong48/iftree/actions/workflows/golangci-lint.yml/badge.svg?branch=main)](https://github.com/TianZong48/iftree/actions/workflows/golangci-lint.yml)
-[![CodeQL](https://github.com/TianZong48/iftree/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/TianZong48/iftree/actions/workflows/codeql-analysis.yml)
-[![Go Report](https://goreportcard.com/badge/github.com/TianZong48/iftree)](https://goreportcard.com/badge/github.com/TianZong48/iftree)
+[![golangci-lint](https://github.com/t1anz0ng/iftree/actions/workflows/golangci-lint.yml/badge.svg?branch=main)](https://github.com/t1anz0ng/iftree/actions/workflows/golangci-lint.yml)
+[![CodeQL](https://github.com/t1anz0ng/iftree/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/t1anz0ng/iftree/actions/workflows/codeql-analysis.yml)
+[![Go Report](https://goreportcard.com/badge/github.com/t1anz0ng/iftree)](https://goreportcard.com/badge/github.com/t1anz0ng/iftree)
 [![Github All Releases](https://img.shields.io/github/downloads/t1anz0ng/iftree/total.svg)](https://img.shields.io/github/downloads/t1anz0ng/iftree/total.svg)
 </div>
 

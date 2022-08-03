@@ -8,8 +8,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/jedib0t/go-pretty/v6/table"
 
-	"github.com/TianZong48/iftree/pkg"
-	"github.com/TianZong48/iftree/pkg/netutil"
+	"github.com/t1anz0ng/iftree/pkg"
+	"github.com/t1anz0ng/iftree/pkg/netutil"
 )
 
 var (

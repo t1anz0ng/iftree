@@ -7,7 +7,7 @@ import (
 
 	"github.com/awalterschulze/gographviz"
 
-	"github.com/TianZong48/iftree/pkg"
+	"github.com/t1anz0ng/iftree/pkg"
 )
 
 func Graph(m map[string][]pkg.Node, vpairs, los []pkg.Node, bm map[string]*net.IP) (string, error) {

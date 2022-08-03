@@ -17,9 +17,9 @@ import (
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 
-	"github.com/TianZong48/iftree/pkg"
-	"github.com/TianZong48/iftree/pkg/formatter"
-	"github.com/TianZong48/iftree/pkg/netutil"
+	"github.com/t1anz0ng/iftree/pkg"
+	"github.com/t1anz0ng/iftree/pkg/formatter"
+	"github.com/t1anz0ng/iftree/pkg/netutil"
 )
 
 var (
