@@ -3,6 +3,8 @@ package formatter
 import (
 	"fmt"
 	"io"
+
+	"sort"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -17,15 +19,12 @@ var (
 )
 
 func Table(w io.Writer, m map[string][]pkg.Node) error {
+
 	tbStr := strings.Builder{}
 	t := table.NewWriter()
 	t.SetOutputMirror(&tbStr)
-	t.SetTitle(lipgloss.NewStyle().
-		Bold(true).
-		Padding(0, 1).
-		Italic(true).
-		Foreground(lipgloss.Color("#FFFFFF")).
-		SetString("bridge <---> veth <---> veth-in container, GROUP BY NetNS").String())
+
+	t.SetTitle(boldItalicTextStyle.SetString("bridge <---> veth <---> veth-in container, GROUP BY NetNS").String())
 	t.AppendHeader(table.Row{"bridge", "netns", "veth", "ifname(container)"})
 
 	for bridge, v := range m {
@@ -36,14 +35,10 @@ func Table(w io.Writer, m map[string][]pkg.Node) error {
 			}
 			c := lipgloss.Color(tableNsColors[id%len(tableNsColors)][0])
 			t.AppendRow(table.Row{
-				lipgloss.NewStyle().
-					Bold(true).
-					Padding(0, 1).
-					Italic(true).
-					Foreground(lipgloss.Color("#FFFFFF")).SetString(bridge),
+				boldItalicTextStyle.SetString(bridge),
 				lipgloss.NewStyle().Bold(true).Foreground(c).SetString(vp.NetNsName),
-				vp.Veth,
-				vp.PeerNameInNetns})
+				basicTextStyle.SetString(vp.Veth),
+				basicTextStyle.SetString(vp.PeerNameInNetns)})
 			t.AppendSeparator()
 		}
 	}
@@ -59,19 +54,37 @@ func Table(w io.Writer, m map[string][]pkg.Node) error {
 	return nil
 }
 
-func TableParis(w io.WriteCloser, vpairs []pkg.Node) error {
+func TableParis(w io.WriteCloser, vpairs []pkg.Node) {
 	tbStr := strings.Builder{}
 	t := table.NewWriter()
 	t.SetOutputMirror(&tbStr)
-	t.SetTitle("unused veth pairs (experimental)")
+
+	//  (experimental)
+	t.SetTitle("unused veth pairs")
 	t.AppendHeader(table.Row{"veth", "pair"})
+	visited := make(map[string]struct{})
 	for _, v := range vpairs {
-		t.AppendRow(table.Row{v.Veth, v.Peer})
+		h := hashVethpair(v.Veth, v.Peer)
+		if _, ok := visited[h]; ok {
+			continue
+		}
+		t.AppendRow(table.Row{
+			basicTextStyle.SetString(v.Veth),
+			basicTextStyle.SetString(v.Peer)})
 		t.AppendSeparator()
+		visited[h] = struct{}{}
 	}
 	t.SetAutoIndex(true)
 	t.SetStyle(table.StyleRounded)
 	t.Render()
 	fmt.Fprintln(w, tbStr.String())
-	return nil
+}
+
+func hashVethpair(a, b string) string {
+	// FIXME, replace with a better hash function
+	res := []rune(a + b)
+	sort.Slice(res, func(i, j int) bool {
+		return res[i] < res[j]
+	})
+	return string(res)
 }

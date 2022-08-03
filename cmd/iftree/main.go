@@ -237,14 +237,11 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		if err := formatter.TableParis(os.Stdout, vpairs); err != nil {
-			log.Fatal(err)
+		if *oUnusedVeths {
+			formatter.TableParis(os.Stdout, vpairs)
 		}
 		return
 	}
 
-	if err := formatter.Print(os.Stdout, vm, netNsMap, vpairs, *oUnusedVeths); err != nil {
-		log.Fatal(err)
-	}
-
+	formatter.Print(os.Stdout, vm, netNsMap, vpairs, *oUnusedVeths)
 }
