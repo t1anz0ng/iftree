@@ -50,11 +50,12 @@ Example:
   generate table output
     # sudo iftree --table
 
-  -d, --debug   print debug message
-  -t, --table   output in table
-  -g, --graph   output in graphviz dot language(https://graphviz.org/doc/info/lang.html
-    -O, --output string   graph output name/path (default "output")
-    -T, --gtype string    graph output type, "jpg", "png", "svg", "dot" (graphviz dot language) default "png"
+  -d, --debug		print debug message
+  -t, --table		output in table
+  -g, --graph		output in graphviz dot language(https://graphviz.org/doc/info/lang.html
+    -O, --output	string   graph output name/path (default "output")
+    -T, --gtype		string    graph output type, "jpg", "png", "svg", "dot" (graphviz dot language) default "png"
+  -a, --all	 	show all veths, including unused.
 Help Options:
   -h, --help       Show this help message
 
@@ -205,6 +206,9 @@ func main() {
 		case "dot":
 			_, err = io.Copy(os.Stdout, &buf)
 		case "jpg", "png", "svg":
+			if !pflag.CommandLine.Changed("output") && !pflag.CommandLine.Changed("gtype") {
+				log.Warn(`default output dst file: "output.png"`)
+			}
 			graph, errG := graphviz.ParseBytes(buf.Bytes())
 			if errG != nil {
 				log.Fatal(errG)
@@ -237,14 +241,11 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		if err := formatter.TableParis(os.Stdout, vpairs); err != nil {
-			log.Fatal(err)
+		if *oUnusedVeths {
+			formatter.TableParis(os.Stdout, vpairs)
 		}
 		return
 	}
 
-	if err := formatter.Print(os.Stdout, vm, netNsMap, vpairs, *oUnusedVeths); err != nil {
-		log.Fatal(err)
-	}
-
+	formatter.Print(os.Stdout, vm, netNsMap, vpairs, *oUnusedVeths)
 }

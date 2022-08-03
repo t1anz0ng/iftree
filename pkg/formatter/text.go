@@ -13,24 +13,14 @@ import (
 	"github.com/t1anz0ng/iftree/pkg"
 )
 
-func Print(w io.Writer, vm map[string][]pkg.Node,
-	netNsMap map[int]string,
-	vpairs []pkg.Node,
-	all bool) error {
+func Print(w io.Writer, vm map[string][]pkg.Node, netNsMap map[int]string, vpairs []pkg.Node, all bool) {
 
 	var content strings.Builder
-	var vpair strings.Builder
+	var contents []string
 
 	lw := list.NewWriter()
 	lw.SetOutputMirror(&content)
-	fmt.Fprintln(&content, lipgloss.NewStyle().
-		Background(lipgloss.Color("#F25D94")).
-		MarginLeft(10).
-		MarginRight(10).
-		Padding(0, 1).
-		Italic(true).
-		Foreground(lipgloss.Color("#FFF7DB")).
-		SetString("Bridge <---->veth pair"))
+	fmt.Fprintln(&content, TitleHighlight.SetString("Bridge <----> veth pair"))
 	for k, v := range vm {
 		master, err := netlink.LinkByName(k)
 		if err != nil {
@@ -51,7 +41,9 @@ func Print(w io.Writer, vm map[string][]pkg.Node,
 					}
 					lw.AppendItem(
 						vethStyle.SetString(
-							fmt.Sprintf("%s\t%s", p.Veth, p.PeerNameInNetns)).String())
+							fmt.Sprintf("%s\t%s",
+								basicTextStyle.SetString(p.Veth),
+								basicTextStyle.SetString(p.PeerNameInNetns))).String())
 				}
 			}
 			if f {
@@ -64,33 +56,29 @@ func Print(w io.Writer, vm map[string][]pkg.Node,
 	lw.SetStyle(list.StyleConnectedRounded)
 	lw.Render()
 
-	var contents []string
 	contents = append(contents, mainStype.Render(content.String()))
-	if all {
-		lw.Reset()
-		lw.SetOutputMirror(&vpair)
 
-		fmt.Fprintln(&vpair, lipgloss.NewStyle().
-			Background(lipgloss.Color("#F25D94")).
-			MarginLeft(5).
-			MarginRight(5).
-			Padding(0, 1).
-			Italic(true).
-			Foreground(lipgloss.Color("#FFF7DB")).
-			SetString("unused veth pairs"))
-		lw.SetStyle(list.StyleConnectedRounded)
+	if all {
+		var vpair strings.Builder
+
+		fmt.Fprintln(&vpair, unusedVethStyle.SetString("unused veth pairs"))
+
+		visited := make(map[string]struct{})
+
 		for _, veth := range vpairs {
-			lw.AppendItem(fmt.Sprintf("%s%s%s", veth.Veth,
-				lipgloss.NewStyle().
-					MarginRight(1).
-					MarginLeft(1).
-					Padding(0, 1).
-					Foreground(special).SetString("<----->"),
-				veth.Peer))
+			h := hashVethpair(veth.Veth, veth.Peer)
+			if _, ok := visited[h]; ok {
+				continue
+			}
+
+			fmt.Fprintf(&vpair, "%s%s%s",
+				basicTextStyle.SetString(veth.Veth),
+				textHighlight.SetString("<----->"),
+				basicTextStyle.SetString(veth.Peer))
+			visited[h] = struct{}{}
 		}
-		lw.Render()
+
 		contents = append(contents, vethPairStyle.Render(vpair.String()))
 	}
 	fmt.Fprintln(w, lipgloss.JoinVertical(lipgloss.Top, contents...))
-	return nil
 }

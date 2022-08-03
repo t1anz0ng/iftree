@@ -6,22 +6,39 @@ import (
 )
 
 var (
+	defaultStyle = lipgloss.NewStyle()
 	// styles
-
+	text    = lipgloss.AdaptiveColor{Light: "#000000", Dark: "#FFFFFF"}
 	special = lipgloss.AdaptiveColor{Light: "#43BF6D", Dark: "#73F59F"}
 
-	mainStype = lipgloss.NewStyle().
-			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(lipgloss.Color("63"))
-	tableStype = lipgloss.NewStyle()
+	basicTextStyle      = lipgloss.NewStyle().Foreground(text).Padding(0, 1)
+	boldItalicTextStyle = lipgloss.NewStyle().
+				Bold(true).
+				Padding(0, 1).
+				Italic(true).
+				Foreground(lipgloss.Color("#FFFFFF"))
+	TitleHighlight = lipgloss.NewStyle().
+			Background(lipgloss.Color("#F25D94")).
+			MarginTop(1).
+			MarginLeft(10).
+			MarginRight(10).
+			Padding(0, 1).
+			Italic(true).
+			Foreground(lipgloss.Color("#FFF7DB"))
 
-	vethPairStyle = lipgloss.NewStyle().
-			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(lipgloss.Color("63"))
+	textHighlight = lipgloss.NewStyle().
+			MarginRight(1).
+			MarginLeft(1).
+			Padding(0, 1).
+			Foreground(special)
+
+	mainStype = defaultStyle.Copy()
+
+	tableStype = defaultStyle.Copy()
+
+	vethPairStyle = defaultStyle.Copy()
 
 	bridgeStyle = lipgloss.NewStyle().
-			MarginRight(5).
-			Padding(0, 1).
 			Bold(true).
 			Italic(true).
 			Foreground(lipgloss.AdaptiveColor{Light: "#43BF6D", Dark: "#73F59F"})
@@ -37,6 +54,14 @@ var (
 			Padding(0, 1).
 			Italic(false).
 			Foreground(lipgloss.Color("#FFFFFF"))
+
+	unusedVethStyle = lipgloss.NewStyle().
+			Background(lipgloss.Color("#F25D94")).
+			MarginLeft(5).
+			MarginRight(5).
+			Padding(0, 1).
+			Italic(true).
+			Foreground(lipgloss.Color("#FFF7DB"))
 )
 
 func colorGrid(xSteps, ySteps int) [][]string {
