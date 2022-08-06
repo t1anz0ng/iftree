@@ -1,0 +1,60 @@
+name: test
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - v*
+  pull_request:
+permissions:
+  contents: read
+jobs:
+
+  golangci-lint:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+    - uses: actions/checkout@v3.0.2
+      with:
+        fetch-depth: 1
+    - uses: actions/setup-go@v3
+      with:
+        go-version: 1.17.x
+    - name: golangci-lint
+      uses: golangci/golangci-lint-action@v3.2.0
+      with:
+        version: v1.46.2
+        args: --verbose
+
+  test-unit:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+    - uses: actions/setup-go@v3
+      with:
+        go-version: 1.17.x
+    - uses: actions/checkout@v3.0.2
+      with:
+        fetch-depth: 1
+    - name: "Run unit tests"
+      run: go test -v ./pkg/...
+
+  test-integration:
+    runs-on: "ubuntu-${{ matrix.ubuntu }}"
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ubuntu: 22.04
+    env:
+      UBUNTU_VERSION: "${{ matrix.ubuntu }}"
+    steps:
+    - uses: actions/checkout@v3.0.2
+      with:
+        fetch-depth: 1
+    - name: "Prepare integration test environment"
+      run: docker build -t test-integration --build-arg UBUNTU_VERSION=${UBUNTU_VERSION} .
+    - name: "Run integration tests"
+      run: docker run -t --rm --privileged test-integration
