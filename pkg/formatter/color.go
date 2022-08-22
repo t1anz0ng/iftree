@@ -17,11 +17,11 @@ var (
 				Padding(0, 1).
 				Italic(true).
 				Foreground(lipgloss.Color("#FFFFFF"))
-	TitleHighlight = lipgloss.NewStyle().
+	titleHighlight = lipgloss.NewStyle().
 			Background(lipgloss.Color("#F25D94")).
 			MarginTop(1).
-			MarginLeft(10).
-			MarginRight(10).
+			MarginLeft(5).
+			MarginRight(5).
 			Padding(0, 1).
 			Italic(true).
 			Foreground(lipgloss.Color("#FFF7DB"))
@@ -54,14 +54,6 @@ var (
 			Padding(0, 1).
 			Italic(false).
 			Foreground(lipgloss.Color("#FFFFFF"))
-
-	unusedVethStyle = lipgloss.NewStyle().
-			Background(lipgloss.Color("#F25D94")).
-			MarginLeft(5).
-			MarginRight(5).
-			Padding(0, 1).
-			Italic(true).
-			Foreground(lipgloss.Color("#FFF7DB"))
 )
 
 func colorGrid(xSteps, ySteps int) [][]string {

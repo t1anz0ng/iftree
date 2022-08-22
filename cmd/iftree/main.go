@@ -25,10 +25,10 @@ import (
 var (
 	debug = pflag.BoolP("debug", "d", false, "print debug message")
 
-	oUnusedVeths = pflag.BoolP("all", "a", false, "show all veths, including unused.")
-	oGraph       = pflag.BoolP("graph", "g", false, "output in png by defaul")
-	oGraphType   = pflag.StringP("gtype", "T", "png", `graph output type, "jpg", "png", "svg", "dot"(graphviz dot language(https://graphviz.org/doc/info/lang.html)`)
-	oGraphName   = pflag.StringP("output", "O", "output", "graph output name/path")
+	oNotBridgedVeths = pflag.BoolP("all", "a", true, "show all veths, including not bridged.")
+	oGraph           = pflag.BoolP("graph", "g", false, "output in png by defaul")
+	oGraphType       = pflag.StringP("gtype", "T", "png", `graph output type, "jpg", "png", "svg", "dot"(graphviz dot language(https://graphviz.org/doc/info/lang.html)`)
+	oGraphName       = pflag.StringP("output", "O", "output", "graph output name/path")
 
 	oTable = pflag.BoolP("table", "t", false, "output in table")
 
@@ -100,106 +100,114 @@ func main() {
 		os.Exit(0)
 	}
 	log.Debugf("net namespace id <-> name map:\n%+v\n", netNsMap)
+
 	ll, err := netlink.LinkList()
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Debugf("net link list:\n%+v\n", ll)
 
-	vm := make(map[string][]pkg.Node) // map bridge <-> veth paris
-	vpairs := []pkg.Node{}            // unused veth paris
-	bm := make(map[string]*net.IP)    // bridge ip
-	los := []pkg.Node{}               // loopback
+	bridgeVethM := make(map[string][]pkg.Node) // map bridge <-> veth paris
+	unBridgedVpairs := []pkg.Node{}
+	bridgeIps := make(map[string]*net.IP) // bridge ip
+	loS := []pkg.Node{}                   // loopback
 
+	origin, err := netns.Get()
+	if err != nil {
+		log.Fatalf("failed get current netne, %v", err)
+	}
+	// FIXME: use undirected graph insted of array/map to store relations
 	for _, link := range ll {
 		veth, ok := link.(*netlink.Veth)
-		if ok { // skip device not enslaved to any bridge
+		if !ok {
+			// skip device not enslaved to any bridge
+			log.Debugf("skip %s, type: %s", link.Attrs().Name, link.Type())
+			continue
+		}
+		log.Debugf("found veth device: %s", veth.Name)
 
-			origin, _ := netns.Get()
-			defer origin.Close()
-
-			peerIdx, err := netlink.VethPeerIndex(veth)
-			if err != nil {
-				log.Fatal(err)
-			}
-			if link.Attrs().MasterIndex == -1 || veth.MasterIndex == 0 {
-				if veth.PeerName == "" {
-					p, err := netlink.LinkByIndex(peerIdx)
-					if err != nil {
-						log.Fatal(err)
-					}
-					veth.PeerName = p.Attrs().Name
-				}
-
-				vpairs = append(vpairs,
-					pkg.Node{
-						Type:    pkg.VethType,
-						Veth:    veth.Name,
-						Peer:    veth.PeerName,
-						PeerId:  peerIdx,
-						NetNsID: veth.NetNsID})
-				continue
-			}
-
-			master, err := netlink.LinkByIndex(veth.Attrs().MasterIndex)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			// if master is not bridge
-			if _, ok := master.(*netlink.Bridge); !ok {
-				log.Debug("todo: not bridge")
-			}
-			bridge := master.Attrs().Name
-			v, ok := vm[bridge]
-			if !ok {
-				vm[bridge] = []pkg.Node{}
-			}
-			pair := pkg.Node{
-				Type:    pkg.VethType,
-				Veth:    veth.Name,
-				PeerId:  peerIdx,
-				NetNsID: veth.NetNsID,
-			}
-			if peerNetNs, ok := netNsMap[veth.NetNsID]; ok {
-				peerInNs, err := netutil.GetPeerInNs(peerNetNs, origin, peerIdx)
+		peerIdx, err := netlink.VethPeerIndex(veth)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if link.Attrs().MasterIndex == -1 || veth.MasterIndex == 0 {
+			log.Debugf("%s not has a bridge as master, MasterIndex: %d", veth.Name, link.Attrs().MasterIndex)
+			if veth.PeerName == "" {
+				p, err := netlink.LinkByIndex(peerIdx)
 				if err != nil {
 					log.Fatal(err)
 				}
-				pair.NetNsName = peerNetNs
-				pair.PeerNameInNetns = peerInNs.Attrs().Name
-				pair.Status = peerInNs.Attrs().OperState.String()
-
-				lo, err := netutil.GetLoInNs(peerNetNs, origin)
-				if err == nil && lo != nil {
-					los = append(los, pkg.Node{
-						Type:      pkg.LoType,
-						NetNsName: peerNetNs,
-						Status:    lo.Attrs().OperState.String(),
-					})
-				}
-			} else {
-				pair.Orphaned = true
+				veth.PeerName = p.Attrs().Name
 			}
+			unBridgedVpairs = append(unBridgedVpairs,
+				pkg.Node{
+					Type:    pkg.VethType,
+					Veth:    veth.Name,
+					Peer:    veth.PeerName,
+					PeerId:  peerIdx,
+					NetNsID: veth.NetNsID})
+			continue
+		}
 
-			addrs, err := netlink.AddrList(master, syscall.AF_INET)
+		master, err := netlink.LinkByIndex(veth.Attrs().MasterIndex)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// if master is not bridge
+		if _, ok := master.(*netlink.Bridge); !ok {
+			log.Debug("todo: not bridge")
+		}
+		bridge := master.Attrs().Name
+		v, ok := bridgeVethM[bridge]
+		if !ok {
+			bridgeVethM[bridge] = []pkg.Node{}
+		}
+		pair := pkg.Node{
+			Type:    pkg.VethType,
+			Veth:    veth.Name,
+			PeerId:  peerIdx,
+			NetNsID: veth.NetNsID,
+		}
+		if peerNetNs, ok := netNsMap[veth.NetNsID]; ok {
+			peerInNs, err := netutil.GetPeerInNs(peerNetNs, origin, peerIdx)
 			if err != nil {
 				log.Fatal(err)
 			}
-			if len(addrs) > 0 {
-				pair.Master = &pkg.Bridge{
-					Name: bridge,
-					IP:   &addrs[0].IP,
-				}
-				bm[bridge] = &addrs[0].IP
+			pair.NetNsName = peerNetNs
+			pair.PeerNameInNetns = peerInNs.Attrs().Name
+			pair.Status = peerInNs.Attrs().OperState.String()
+
+			lo, err := netutil.GetLoInNs(peerNetNs, origin)
+			if err == nil && lo != nil {
+				loS = append(loS, pkg.Node{
+					Type:      pkg.LoType,
+					NetNsName: peerNetNs,
+					Status:    lo.Attrs().OperState.String(),
+				})
 			}
-			vm[bridge] = append(v, pair)
+		} else {
+			pair.Orphaned = true
 		}
 
+		addrs, err := netlink.AddrList(master, syscall.AF_INET)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if len(addrs) > 0 {
+			pair.Master = &pkg.Bridge{
+				Name: bridge,
+				IP:   &addrs[0].IP,
+			}
+			bridgeIps[bridge] = &addrs[0].IP
+		}
+		bridgeVethM[bridge] = append(v, pair)
 	}
+	log.Debugf("bridgeVethMap: %+v", bridgeVethM)
 
 	if *oGraph {
 		buf := bytes.Buffer{}
-		output, err := formatter.Graph(vm, vpairs, los, bm)
+		output, err := formatter.Graph(bridgeVethM, unBridgedVpairs, loS, bridgeIps)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -241,15 +249,15 @@ func main() {
 		return
 	}
 	if *oTable {
-		err := formatter.Table(os.Stdout, vm)
+		err := formatter.Table(os.Stdout, bridgeVethM)
 		if err != nil {
 			log.Fatal(err)
 		}
-		if *oUnusedVeths {
-			formatter.TableParis(os.Stdout, vpairs)
+		if *oNotBridgedVeths {
+			formatter.TableParis(os.Stdout, unBridgedVpairs)
 		}
 		return
 	}
 
-	formatter.Print(os.Stdout, vm, netNsMap, vpairs, *oUnusedVeths)
+	formatter.Print(os.Stdout, bridgeVethM, netNsMap, unBridgedVpairs, *oNotBridgedVeths)
 }

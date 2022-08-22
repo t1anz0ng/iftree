@@ -9,6 +9,13 @@ import (
 	"github.com/vishvananda/netns"
 )
 
+const (
+	// https://man7.org/linux/man-pages/man8/ip-netns.8.html
+	netNsPath = "/var/run/netns"
+	// default docker dir
+	docNetNSkerPath = "/var/run/docker/netns"
+)
+
 // https://github.com/shemminger/iproute2/blob/main/ip/ipnetns.c#L432
 // https://github.com/shemminger/iproute2/blob/main/ip/ipnetns.c#L106
 func NetNsMap() (map[int]string, error) {
@@ -46,26 +53,23 @@ func NsidFromPath(path string) (int, error) {
 func listNetNsPath() ([]string, error) {
 	var ns []string
 
-	// https://man7.org/linux/man-pages/man8/ip-netns.8.html
-	path := "/var/run/netns"
-	es, err := os.ReadDir(path)
+	es, err := os.ReadDir(netNsPath)
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	} else {
 		for _, e := range es {
-			ns = append(ns, filepath.Join(path, e.Name()))
+			ns = append(ns, filepath.Join(netNsPath, e.Name()))
+		}
+	}
+	dEs, err := os.ReadDir(docNetNSkerPath)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	} else {
+		for _, e := range dEs {
+			ns = append(ns, filepath.Join(docNetNSkerPath, e.Name()))
 		}
 	}
 
-	// default docker dir
-	dockerPath := "/var/run/docker/netns"
-	dEs, err := os.ReadDir(dockerPath)
-	if err != nil && !os.IsNotExist(err) {
-		return nil, err
-	}
-	for _, e := range dEs {
-		ns = append(ns, filepath.Join(dockerPath, e.Name()))
-	}
 	return ns, nil
 }
 
@@ -84,6 +88,9 @@ func GetLoInNs(ns string, origin netns.NsHandle) (netlink.Link, error) {
 }
 
 func netnsGetName(ns string, origin netns.NsHandle, fn func() (netlink.Link, error)) (link netlink.Link, err error) {
+	// Switch back to the original namespace
+	defer netns.Set(origin) //nolint: errcheck
+
 	hd, err := netns.GetFromPath(ns)
 	if err != nil {
 		return nil, err
@@ -91,8 +98,5 @@ func netnsGetName(ns string, origin netns.NsHandle, fn func() (netlink.Link, err
 	if err := netns.Set(hd); err != nil {
 		return nil, err
 	}
-	// Switch back to the original namespace
-
-	defer netns.Set(origin) //nolint: errcheck
 	return fn()
 }

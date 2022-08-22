@@ -20,7 +20,7 @@ func Print(w io.Writer, vm map[string][]pkg.Node, netNsMap map[int]string, vpair
 
 	lw := list.NewWriter()
 	lw.SetOutputMirror(&content)
-	fmt.Fprintln(&content, TitleHighlight.SetString("Bridge <----> veth pair"))
+	fmt.Fprintln(&content, titleHighlight.SetString("Bridge <----> veth pair"))
 	for k, v := range vm {
 		master, err := netlink.LinkByName(k)
 		if err != nil {
@@ -39,6 +39,7 @@ func Print(w io.Writer, vm map[string][]pkg.Node, netNsMap map[int]string, vpair
 						f = true
 						lw.Indent()
 					}
+
 					lw.AppendItem(
 						vethStyle.SetString(
 							fmt.Sprintf("%s\t%s",
@@ -61,7 +62,7 @@ func Print(w io.Writer, vm map[string][]pkg.Node, netNsMap map[int]string, vpair
 	if all {
 		var vpair strings.Builder
 
-		fmt.Fprintln(&vpair, unusedVethStyle.SetString("unused veth pairs"))
+		fmt.Fprintln(&vpair, titleHighlight.SetString("not bridged veth pairs"))
 
 		visited := make(map[string]struct{})
 
@@ -71,10 +72,12 @@ func Print(w io.Writer, vm map[string][]pkg.Node, netNsMap map[int]string, vpair
 				continue
 			}
 
-			fmt.Fprintf(&vpair, "%s%s%s",
+			fmt.Fprintf(&vpair, "%s%s%s\t%s\n",
 				basicTextStyle.SetString(veth.Veth),
 				textHighlight.SetString("<----->"),
-				basicTextStyle.SetString(veth.Peer))
+				basicTextStyle.SetString(veth.Peer),
+				netNsStyle.SetString(netNsMap[veth.NetNsID]),
+			)
 			visited[h] = struct{}{}
 		}
 
