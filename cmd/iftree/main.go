@@ -95,6 +95,10 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	if len(netNsMap) == 0 {
+		log.Warn("no netns found")
+		os.Exit(0)
+	}
 	log.Debugf("net namespace id <-> name map:\n%+v\n", netNsMap)
 	ll, err := netlink.LinkList()
 	if err != nil {

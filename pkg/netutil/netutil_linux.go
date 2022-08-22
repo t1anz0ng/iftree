@@ -44,20 +44,23 @@ func NsidFromPath(path string) (int, error) {
 }
 
 func listNetNsPath() ([]string, error) {
+	var ns []string
+
 	// https://man7.org/linux/man-pages/man8/ip-netns.8.html
 	path := "/var/run/netns"
 	es, err := os.ReadDir(path)
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		return nil, err
+	} else {
+		for _, e := range es {
+			ns = append(ns, filepath.Join(path, e.Name()))
+		}
 	}
-	var ns []string
-	for _, e := range es {
-		ns = append(ns, filepath.Join(path, e.Name()))
-	}
+
 	// default docker dir
 	dockerPath := "/var/run/docker/netns"
 	dEs, err := os.ReadDir(dockerPath)
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
 	for _, e := range dEs {
