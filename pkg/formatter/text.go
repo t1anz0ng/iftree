@@ -15,56 +15,58 @@ import (
 
 func Print(w io.Writer, vm map[string][]pkg.Node, netNsMap map[int]string, vpairs []pkg.Node, all bool) {
 
-	var content strings.Builder
 	var contents []string
 
-	lw := list.NewWriter()
-	lw.SetOutputMirror(&content)
-	fmt.Fprintln(&content, titleHighlight.SetString("Bridge <----> veth pair"))
-	for k, v := range vm {
-		master, err := netlink.LinkByName(k)
-		if err != nil {
-			log.Fatal(err)
-		}
-		lw.AppendItem(
-			bridgeStyle.SetString(
-				fmt.Sprintf("%s\t%s", k, master.Attrs().OperState)).String())
-		lw.Indent()
-		for _, nsName := range netNsMap {
-			f := false
-			for _, p := range v {
-				if nsName == p.NetNsName {
-					if !f {
-						lw.AppendItem(netNsStyle.SetString(nsName).String())
-						f = true
-						lw.Indent()
-					}
+	if len(vm) > 0 {
+		var content strings.Builder
 
-					lw.AppendItem(
-						vethStyle.SetString(
-							fmt.Sprintf("%s\t%s",
-								basicTextStyle.SetString(p.Veth),
-								basicTextStyle.SetString(p.PeerNameInNetns))).String())
+		lw := list.NewWriter()
+		lw.SetOutputMirror(&content)
+		fmt.Fprintln(&content, titleHighlight.SetString("Bridge <----> veth pair"))
+		for k, v := range vm {
+			master, err := netlink.LinkByName(k)
+			if err != nil {
+				log.Fatal(err)
+			}
+			lw.AppendItem(
+				bridgeStyle.SetString(
+					fmt.Sprintf("%s\t%s", k, master.Attrs().OperState)))
+			lw.Indent()
+			for _, nsName := range netNsMap {
+				f := false
+				for _, p := range v {
+					if nsName == p.NetNsName {
+						if !f {
+							lw.AppendItem(netNsStyle.SetString(nsName))
+							f = true
+							lw.Indent()
+						}
+
+						lw.AppendItem(
+							vethStyle.SetString(
+								fmt.Sprintf("%s\t%s",
+									basicTextStyle.SetString(p.Veth),
+									basicTextStyle.SetString(p.PeerNameInNetns))))
+					}
+				}
+				if f {
+					lw.UnIndent()
 				}
 			}
-			if f {
-				lw.UnIndent()
-			}
+			lw.UnIndent()
 		}
-		lw.UnIndent()
+
+		lw.SetStyle(list.StyleConnectedRounded)
+		lw.Render()
+
+		contents = append(contents, mainStype.Render(content.String()))
 	}
 
-	lw.SetStyle(list.StyleConnectedRounded)
-	lw.Render()
-
-	contents = append(contents, mainStype.Render(content.String()))
-
-	if all {
+	if all && len(vpairs) > 0 {
 		var vpair strings.Builder
+		visited := make(map[string]struct{})
 
 		fmt.Fprintln(&vpair, titleHighlight.SetString("not bridged veth pairs"))
-
-		visited := make(map[string]struct{})
 
 		for _, veth := range vpairs {
 			h := hashVethpair(veth.Veth, veth.Peer)
@@ -72,10 +74,11 @@ func Print(w io.Writer, vm map[string][]pkg.Node, netNsMap map[int]string, vpair
 				continue
 			}
 
-			fmt.Fprintf(&vpair, "%s%s%s\t%s\n",
+			fmt.Fprintf(&vpair, "%s%s%s\t%s\t%s\n",
 				basicTextStyle.SetString(veth.Veth),
-				textHighlight.SetString("<----->"),
+				textHighlight.SetString("<-->"),
 				basicTextStyle.SetString(veth.Peer),
+				basicTextStyle.SetString(veth.Route.String()),
 				netNsStyle.SetString(netNsMap[veth.NetNsID]),
 			)
 			visited[h] = struct{}{}
@@ -83,5 +86,8 @@ func Print(w io.Writer, vm map[string][]pkg.Node, netNsMap map[int]string, vpair
 
 		contents = append(contents, vethPairStyle.Render(vpair.String()))
 	}
-	fmt.Fprintln(w, lipgloss.JoinVertical(lipgloss.Top, contents...))
+
+	if len(contents) > 0 {
+		fmt.Fprintln(w, lipgloss.JoinVertical(lipgloss.Top, contents...))
+	}
 }

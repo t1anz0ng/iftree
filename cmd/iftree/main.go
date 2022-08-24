@@ -11,7 +11,6 @@ import (
 	"syscall"
 
 	"github.com/containerd/nerdctl/pkg/rootlessutil"
-	graphviz "github.com/goccy/go-graphviz"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"github.com/vishvananda/netlink"
@@ -35,6 +34,8 @@ var (
 	help = pflag.BoolP("help", "h", false, "")
 
 	version = "unknown"
+
+	defaultOutput = os.Stdout
 )
 
 func init() {
@@ -139,13 +140,22 @@ func main() {
 				}
 				veth.PeerName = p.Attrs().Name
 			}
-			unBridgedVpairs = append(unBridgedVpairs,
-				pkg.Node{
-					Type:    pkg.VethType,
-					Veth:    veth.Name,
-					Peer:    veth.PeerName,
-					PeerId:  peerIdx,
-					NetNsID: veth.NetNsID})
+			routes, err := netlink.RouteList(link, 4)
+			if err != nil {
+				log.Fatal(err)
+			}
+			node := pkg.Node{
+				Type:    pkg.VethType,
+				Veth:    veth.Name,
+				Peer:    veth.PeerName,
+				PeerId:  peerIdx,
+				NetNsID: veth.NetNsID,
+			}
+			if len(routes) > 0 {
+				// TODO: more than one IP?
+				node.Route = routes[0].Dst.IP
+			}
+			unBridgedVpairs = append(unBridgedVpairs, node)
 			continue
 		}
 
@@ -156,7 +166,8 @@ func main() {
 
 		// if master is not bridge
 		if _, ok := master.(*netlink.Bridge); !ok {
-			log.Debug("todo: not bridge")
+			// TODO: what if master is not bridge?
+			continue
 		}
 		bridge := master.Attrs().Name
 		v, ok := bridgeVethM[bridge]
@@ -205,9 +216,10 @@ func main() {
 	}
 	log.Debugf("bridgeVethMap: %+v", bridgeVethM)
 
-	if *oGraph {
+	switch {
+	case *oGraph:
 		buf := bytes.Buffer{}
-		output, err := formatter.Graph(bridgeVethM, unBridgedVpairs, loS, bridgeIps)
+		output, err := formatter.GraphInDOT(bridgeVethM, unBridgedVpairs, loS, bridgeIps)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -216,30 +228,12 @@ func main() {
 
 		switch gType {
 		case "dot":
-			_, err = io.Copy(os.Stdout, &buf)
+			_, err = io.Copy(defaultOutput, &buf)
 		case "jpg", "png", "svg":
 			if !pflag.CommandLine.Changed("output") && !pflag.CommandLine.Changed("gtype") {
 				log.Warn(`default output dst file: "output.png"`)
 			}
-			graph, errG := graphviz.ParseBytes(buf.Bytes())
-			if errG != nil {
-				log.Fatal(errG)
-			}
-			g := graphviz.New()
-			fn := fmt.Sprintf("%s.%s", *oGraphName, gType)
-			f, errF := os.Create(fn)
-			if errF != nil {
-				log.Fatal(errF)
-			}
-			defer f.Close()
-			switch gType {
-			case "jpg":
-				err = g.Render(graph, graphviz.JPG, f)
-			case "png":
-				err = g.Render(graph, graphviz.PNG, f)
-			case "svg":
-				err = g.Render(graph, graphviz.SVG, f)
-			}
+			err = formatter.GenImage(buf.Bytes(), oGraphName, gType)
 		default:
 			log.Fatal("invalid graph type")
 		}
@@ -247,17 +241,18 @@ func main() {
 			log.Fatal(err)
 		}
 		return
-	}
-	if *oTable {
-		err := formatter.Table(os.Stdout, bridgeVethM)
-		if err != nil {
-			log.Fatal(err)
+	case *oTable:
+		if len(bridgeVethM) > 0 {
+			err := formatter.Table(defaultOutput, bridgeVethM)
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
-		if *oNotBridgedVeths {
-			formatter.TableParis(os.Stdout, unBridgedVpairs)
+		if *oNotBridgedVeths && len(unBridgedVpairs) > 0 {
+			formatter.TableParis(defaultOutput, unBridgedVpairs)
 		}
 		return
+	default:
+		formatter.Print(defaultOutput, bridgeVethM, netNsMap, unBridgedVpairs, *oNotBridgedVeths)
 	}
-
-	formatter.Print(os.Stdout, bridgeVethM, netNsMap, unBridgedVpairs, *oNotBridgedVeths)
 }

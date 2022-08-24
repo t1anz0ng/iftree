@@ -34,6 +34,7 @@ type Node struct {
 	NetNsID         int
 	NetNsName       string
 	Master          *Bridge
+	Route           net.IP
 
 	// general
 	Name   string

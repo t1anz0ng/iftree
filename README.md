@@ -58,7 +58,7 @@ Example:
 ### text
 
 ```shell
-sudo go run cmd/iftree/main.go
+sudo iftree
 ```
 
 ### graph
@@ -73,13 +73,13 @@ Or create an ouput image with any [graphviz](https://www.graphviz.org/) compatib
 e.g: online editor: https://dreampuf.github.io/GraphvizOnline
 
 ```shell
-sudo go run cmd/iftree/main.go --graph -Tdot
+sudo iftree --graph -Tdot
 ```
 
 generate image using `dot`(http://www.graphviz.org/download/#executable-packages)
 
 ```shell
-sudo go run cmd/iftree/main.go --graph -Tdot | dot -Tpng  > output.png
+sudo iftree --graph -Tdot | dot -Tpng  > output.png
 ```
 
 ### table

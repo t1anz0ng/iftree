@@ -3,14 +3,17 @@ package formatter
 import (
 	"fmt"
 	"net"
+	"os"
 	"strings"
 
 	"github.com/awalterschulze/gographviz"
+	graphviz "github.com/goccy/go-graphviz"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/t1anz0ng/iftree/pkg"
 )
 
-func Graph(m map[string][]pkg.Node, vpairs, los []pkg.Node, bm map[string]*net.IP) (string, error) {
+func GraphInDOT(m map[string][]pkg.Node, vpairs, los []pkg.Node, bm map[string]*net.IP) (string, error) {
 
 	root := gographviz.NewEscape()
 	if err := root.SetName("G"); err != nil {
@@ -144,4 +147,27 @@ func Graph(m map[string][]pkg.Node, vpairs, los []pkg.Node, bm map[string]*net.I
 	}
 
 	return root.String(), nil
+}
+
+func GenImage(data []byte, oGraphName *string, gType string) (err error) {
+	graph, errG := graphviz.ParseBytes(data)
+	if errG != nil {
+		log.Fatal(errG)
+	}
+	g := graphviz.New()
+	fn := fmt.Sprintf("%s.%s", *oGraphName, gType)
+	f, errF := os.Create(fn)
+	if errF != nil {
+		log.Fatal(errF)
+	}
+	defer f.Close()
+	switch gType {
+	case "jpg":
+		err = g.Render(graph, graphviz.JPG, f)
+	case "png":
+		err = g.Render(graph, graphviz.PNG, f)
+	case "svg":
+		err = g.Render(graph, graphviz.SVG, f)
+	}
+	return
 }

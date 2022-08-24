@@ -54,14 +54,18 @@ func Table(w io.Writer, m map[string][]pkg.Node) error {
 	return nil
 }
 
-func TableParis(w io.WriteCloser, vpairs []pkg.Node) {
+func TableParis(w io.Writer, vpairs []pkg.Node) {
+
+	if len(vpairs) == 0 {
+		return
+	}
 	tbStr := strings.Builder{}
 	t := table.NewWriter()
 	t.SetOutputMirror(&tbStr)
 
-	//  (experimental)
-	t.SetTitle("unused veth pairs")
-	t.AppendHeader(table.Row{"veth", "pair"})
+	// (experimental)
+	t.SetTitle("not bridged veth pairs")
+	t.AppendHeader(table.Row{"veth", "route", "pair(In NetNS)"})
 	visited := make(map[string]struct{})
 	for _, v := range vpairs {
 		h := hashVethpair(v.Veth, v.Peer)
@@ -70,7 +74,9 @@ func TableParis(w io.WriteCloser, vpairs []pkg.Node) {
 		}
 		t.AppendRow(table.Row{
 			basicTextStyle.SetString(v.Veth),
-			basicTextStyle.SetString(v.Peer)})
+			basicTextStyle.SetString(v.Route.String()),
+			basicTextStyle.SetString(v.Peer),
+		})
 		t.AppendSeparator()
 		visited[h] = struct{}{}
 	}
