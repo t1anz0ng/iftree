@@ -26,7 +26,7 @@ var (
 
 	oNotBridgedVeths = pflag.BoolP("all", "a", true, "show all veths, including not bridged.")
 	oGraph           = pflag.BoolP("graph", "g", false, "output in png by defaul")
-	oGraphType       = pflag.StringP("gtype", "T", "png", `graph output type, "jpg", "png", "svg", "dot"(graphviz dot language(https://graphviz.org/doc/info/lang.html)`)
+	oGraphType       = pflag.StringP("gtype", "T", "dot", `graph output type, "jpg", "png", "svg", "dot"(graphviz dot language(https://graphviz.org/doc/info/lang.html)`)
 	oGraphName       = pflag.StringP("output", "O", "output", "graph output name/path")
 
 	oTable = pflag.BoolP("table", "t", false, "output in table")

@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/awalterschulze/gographviz"
+	graph "github.com/awalterschulze/gographviz"
 	graphviz "github.com/goccy/go-graphviz"
 	log "github.com/sirupsen/logrus"
 
@@ -15,14 +15,14 @@ import (
 
 func GraphInDOT(m map[string][]pkg.Node, vpairs, los []pkg.Node, bm map[string]*net.IP) (string, error) {
 
-	root := gographviz.NewEscape()
+	root := graph.NewEscape()
 	if err := root.SetName("G"); err != nil {
 		return "", err
 	}
 	root.AddAttr("G", "layout", "fdp")    //nolint:errcheck
 	root.AddAttr("G", "splines", "ortho") //nolint:errcheck
 	root.AddAttr("G", "ratio", "0.7")     //nolint:errcheck
-	subGraphM := make(map[string]*gographviz.SubGraph)
+	subGraphM := make(map[string]*graph.SubGraph)
 
 	for bridge, v := range m {
 		labels := []string{bridge}
@@ -45,7 +45,7 @@ func GraphInDOT(m map[string][]pkg.Node, vpairs, los []pkg.Node, bm map[string]*
 				sub, ok := subGraphM[vp.NetNsName]
 				if !ok {
 					// init subgraph for netns
-					sub = gographviz.NewSubGraph(fmt.Sprintf("cluster%s%c", bridge, 'A'+i))
+					sub = graph.NewSubGraph(fmt.Sprintf("cluster%s%c", bridge, 'A'+i))
 					subGraphM[vp.NetNsName] = sub
 					attr := map[string]string{
 						"label":   fmt.Sprintf("NetNS\n%s", vp.NetNsName),
