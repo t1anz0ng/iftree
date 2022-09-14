@@ -9,16 +9,18 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 
-	"github.com/t1anz0ng/iftree/pkg"
 	"github.com/t1anz0ng/iftree/pkg/netutil"
+	"github.com/t1anz0ng/iftree/pkg/types"
 )
 
 var (
 	tableNsColors = colorGrid(1, 5)
 )
 
-func Table(w io.Writer, m map[string][]pkg.Node) error {
+func Table(w io.Writer, m map[string][]types.Node) error {
 
 	tbStr := strings.Builder{}
 	t := table.NewWriter()
@@ -29,9 +31,13 @@ func Table(w io.Writer, m map[string][]pkg.Node) error {
 
 	for bridge, v := range m {
 		for _, vp := range v {
+			if vp.NetNsName == "" {
+				logrus.Warnf("no netns name for %+v", vp)
+				continue
+			}
 			id, err := netutil.NsidFromPath(vp.NetNsName)
 			if err != nil {
-				return err
+				return errors.Wrapf(err, "get nsid from path `%s`", vp.NetNsName)
 			}
 			c := lipgloss.Color(tableNsColors[id%len(tableNsColors)][0])
 			t.AppendRow(table.Row{
@@ -54,7 +60,7 @@ func Table(w io.Writer, m map[string][]pkg.Node) error {
 	return nil
 }
 
-func TableParis(w io.Writer, vpairs []pkg.Node) {
+func TableParis(w io.Writer, vpairs []types.Node) {
 
 	if len(vpairs) == 0 {
 		return

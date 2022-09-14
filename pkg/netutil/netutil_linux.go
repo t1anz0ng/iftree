@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )
@@ -21,22 +22,24 @@ const (
 func NetNsMap() (map[int]string, error) {
 	nsArr, err := listNetNsPath()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed list netns")
+		return nil, errors.Wrap(err, "list netns")
 	}
-
+	logrus.Debugf("netns paths: %+v", nsArr)
 	m := make(map[int]string)
 	for _, path := range nsArr {
 		id, err := NsidFromPath(path)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, "get nsid from path `%s`", path)
 		}
 		// -1 if the namespace does not have an ID set.
-		if id != -1 {
-			m[id] = path
+		if id == -1 {
+			continue
 		}
+		m[id] = path
 	}
 	return m, nil
 }
+
 func NsidFromPath(path string) (int, error) {
 	netnsFd, err := netns.GetFromPath(path)
 	if err != nil {

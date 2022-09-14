@@ -11,14 +11,15 @@ import (
 	"syscall"
 
 	"github.com/containerd/nerdctl/pkg/rootlessutil"
-	log "github.com/sirupsen/logrus"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 
-	"github.com/t1anz0ng/iftree/pkg"
 	"github.com/t1anz0ng/iftree/pkg/formatter"
 	"github.com/t1anz0ng/iftree/pkg/netutil"
+	"github.com/t1anz0ng/iftree/pkg/types"
 )
 
 var (
@@ -63,6 +64,7 @@ Help Options:
 version: %s
 `, version)
 	}
+
 }
 
 func helper() error {
@@ -75,77 +77,82 @@ func helper() error {
 	}
 	return nil
 }
+
 func main() {
 	pflag.Parse()
 	if err := helper(); err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 	if rootlessutil.IsRootless() {
-		log.Error("iftree must be run as root to enter ns")
+		logrus.Error("iftree must be run as root to enter ns")
 		os.Exit(1)
 	}
-	log.SetLevel(log.InfoLevel)
+	logrus.SetLevel(logrus.InfoLevel)
 	if *debug {
-		log.SetReportCaller(true)
-		log.SetLevel(log.DebugLevel)
+		logrus.SetReportCaller(true)
+		logrus.SetLevel(logrus.DebugLevel)
+	} else {
+		logrus.SetLevel(logrus.ErrorLevel)
 	}
+
+	// Lock the OS Thread so we don't accidentally switch namespaces
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
 	netNsMap, err := netutil.NetNsMap()
 	if err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 	if len(netNsMap) == 0 {
-		log.Warn("no netns found")
+		logrus.Warn("no netns found")
 		os.Exit(0)
 	}
-	log.Debugf("net namespace id <-> name map:\n%+v\n", netNsMap)
+	logrus.Debugf("net namespace id <-> name map:\n%+v\n", netNsMap)
 
 	ll, err := netlink.LinkList()
 	if err != nil {
-		log.Fatal(err)
+		logrus.Fatal(errors.Unwrap(err))
 	}
-	log.Debugf("net link list:\n%+v\n", ll)
+	logrus.Debugf("net link list:\n%+v\n", ll)
 
-	bridgeVethM := make(map[string][]pkg.Node) // map bridge <-> veth paris
-	unBridgedVpairs := []pkg.Node{}
+	bridgeVethM := make(map[string][]types.Node) // map bridge <-> veth paris
+	unBridgedVpairs := []types.Node{}
 	bridgeIps := make(map[string]*net.IP) // bridge ip
-	loS := []pkg.Node{}                   // loopback
+	loS := []types.Node{}                 // loopback
 
 	origin, err := netns.Get()
 	if err != nil {
-		log.Fatalf("failed get current netne, %v", err)
+		logrus.Fatalf("failed get current netne, %v", err)
 	}
-	// FIXME: use undirected graph insted of array/map to store relations
+
 	for _, link := range ll {
 		veth, ok := link.(*netlink.Veth)
 		if !ok {
 			// skip device not enslaved to any bridge
-			log.Debugf("skip %s, type: %s", link.Attrs().Name, link.Type())
+			logrus.Debugf("skip %s, type: %s", link.Attrs().Name, link.Type())
 			continue
 		}
-		log.Debugf("found veth device: %s", veth.Name)
+		logrus.Debugf("veth device: %+v", veth)
 
 		peerIdx, err := netlink.VethPeerIndex(veth)
 		if err != nil {
-			log.Fatal(err)
+			logrus.Fatal(err)
 		}
 		if link.Attrs().MasterIndex == -1 || veth.MasterIndex == 0 {
-			log.Debugf("%s not has a bridge as master, MasterIndex: %d", veth.Name, link.Attrs().MasterIndex)
+			logrus.Debugf("%s not has a bridge as master, MasterIndex: %d", veth.Name, link.Attrs().MasterIndex)
 			if veth.PeerName == "" {
 				p, err := netlink.LinkByIndex(peerIdx)
 				if err != nil {
-					log.Fatal(err)
+					logrus.Fatal(err)
 				}
 				veth.PeerName = p.Attrs().Name
 			}
 			routes, err := netlink.RouteList(link, 4)
 			if err != nil {
-				log.Fatal(err)
+				logrus.Fatal(err)
 			}
-			node := pkg.Node{
-				Type:    pkg.VethType,
+			node := types.Node{
+				Type:    types.VethType,
 				Veth:    veth.Name,
 				Peer:    veth.PeerName,
 				PeerId:  peerIdx,
@@ -161,7 +168,7 @@ func main() {
 
 		master, err := netlink.LinkByIndex(veth.Attrs().MasterIndex)
 		if err != nil {
-			log.Fatal(err)
+			logrus.Fatal(err)
 		}
 
 		// if master is not bridge
@@ -172,10 +179,10 @@ func main() {
 		bridge := master.Attrs().Name
 		v, ok := bridgeVethM[bridge]
 		if !ok {
-			bridgeVethM[bridge] = []pkg.Node{}
+			bridgeVethM[bridge] = []types.Node{}
 		}
-		pair := pkg.Node{
-			Type:    pkg.VethType,
+		pair := types.Node{
+			Type:    types.VethType,
 			Veth:    veth.Name,
 			PeerId:  peerIdx,
 			NetNsID: veth.NetNsID,
@@ -183,7 +190,7 @@ func main() {
 		if peerNetNs, ok := netNsMap[veth.NetNsID]; ok {
 			peerInNs, err := netutil.GetPeerInNs(peerNetNs, origin, peerIdx)
 			if err != nil {
-				log.Fatal(err)
+				logrus.Fatal(err)
 			}
 			pair.NetNsName = peerNetNs
 			pair.PeerNameInNetns = peerInNs.Attrs().Name
@@ -191,8 +198,8 @@ func main() {
 
 			lo, err := netutil.GetLoInNs(peerNetNs, origin)
 			if err == nil && lo != nil {
-				loS = append(loS, pkg.Node{
-					Type:      pkg.LoType,
+				loS = append(loS, types.Node{
+					Type:      types.LoType,
 					NetNsName: peerNetNs,
 					Status:    lo.Attrs().OperState.String(),
 				})
@@ -203,10 +210,10 @@ func main() {
 
 		addrs, err := netlink.AddrList(master, syscall.AF_INET)
 		if err != nil {
-			log.Fatal(err)
+			logrus.Fatal(err)
 		}
 		if len(addrs) > 0 {
-			pair.Master = &pkg.Bridge{
+			pair.Master = &types.Bridge{
 				Name: bridge,
 				IP:   &addrs[0].IP,
 			}
@@ -214,14 +221,14 @@ func main() {
 		}
 		bridgeVethM[bridge] = append(v, pair)
 	}
-	log.Debugf("bridgeVethMap: %+v", bridgeVethM)
+	logrus.Debugf("bridgeVethMap: %+v", bridgeVethM)
 
 	switch {
 	case *oGraph:
 		buf := bytes.Buffer{}
 		output, err := formatter.GraphInDOT(bridgeVethM, unBridgedVpairs, loS, bridgeIps)
 		if err != nil {
-			log.Fatal(err)
+			logrus.Fatal(errors.Unwrap(err))
 		}
 		fmt.Fprintln(&buf, output)
 		gType := strings.ToLower(*oGraphType)
@@ -231,21 +238,25 @@ func main() {
 			_, err = io.Copy(defaultOutput, &buf)
 		case "jpg", "png", "svg":
 			if !pflag.CommandLine.Changed("output") && !pflag.CommandLine.Changed("gtype") {
-				log.Warn(`default output dst file: "output.png"`)
+				logrus.Warn(`default output dst file: "output.png"`)
 			}
-			err = formatter.GenImage(buf.Bytes(), oGraphName, gType)
+			if fn, err := formatter.GenImage(buf.Bytes(), oGraphName, gType); err != nil {
+				os.Remove(fn)
+				logrus.Fatal(errors.Unwrap(err))
+			}
 		default:
-			log.Fatal("invalid graph type")
+			logrus.Error("unknown image type")
+			os.Exit(1)
 		}
 		if err != nil {
-			log.Fatal(err)
+			logrus.Fatal(err)
 		}
 		return
 	case *oTable:
 		if len(bridgeVethM) > 0 {
 			err := formatter.Table(defaultOutput, bridgeVethM)
 			if err != nil {
-				log.Fatal(err)
+				logrus.Fatal(errors.Unwrap(err))
 			}
 		}
 		if *oNotBridgedVeths && len(unBridgedVpairs) > 0 {

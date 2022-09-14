@@ -7,13 +7,13 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/jedib0t/go-pretty/v6/list"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 
-	"github.com/t1anz0ng/iftree/pkg"
+	"github.com/t1anz0ng/iftree/pkg/types"
 )
 
-func Print(w io.Writer, vm map[string][]pkg.Node, netNsMap map[int]string, vpairs []pkg.Node, all bool) {
+func Print(w io.Writer, vm map[string][]types.Node, netNsMap map[int]string, vpairs []types.Node, all bool) {
 
 	var contents []string
 
@@ -26,7 +26,7 @@ func Print(w io.Writer, vm map[string][]pkg.Node, netNsMap map[int]string, vpair
 		for k, v := range vm {
 			master, err := netlink.LinkByName(k)
 			if err != nil {
-				log.Fatal(err)
+				logrus.Fatal(err)
 			}
 			lw.AppendItem(
 				bridgeStyle.SetString(

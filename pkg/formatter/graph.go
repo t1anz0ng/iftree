@@ -8,36 +8,72 @@ import (
 
 	graph "github.com/awalterschulze/gographviz"
 	graphviz "github.com/goccy/go-graphviz"
-	log "github.com/sirupsen/logrus"
+	"github.com/pkg/errors"
 
-	"github.com/t1anz0ng/iftree/pkg"
+	"github.com/t1anz0ng/iftree/pkg/types"
 )
 
-func GraphInDOT(m map[string][]pkg.Node, vpairs, los []pkg.Node, bm map[string]*net.IP) (string, error) {
+const (
+	label = "label"
+)
 
+var (
+	nodeAttr = map[string]string{
+		"style": "filled",
+	}
+	netNsAttr = map[string]string{
+		"style":   "filled",
+		"color":   "grey",
+		"nodesep": "4.0",
+		"shape":   "box",
+	}
+	bridgeAttr = map[string]string{
+		"nodesep":  "4.0",
+		"shape":    "octagon",
+		"style":    "filled",
+		"fontsize": "16pt",
+	}
+	loAttr = map[string]string{
+		"shape": "oval",
+		"style": "filled",
+		"color": "#f0c674",
+	}
+	edgeAttr = map[string]string{
+		"color": "black",
+	}
+	redEdgeAttr = map[string]string{
+		"color":     "red",
+		"fontcolor": "red",
+	}
+	inNetNsAttr = map[string]string{
+		"shape": "oval",
+		"style": "filled",
+		"color": "#f0c674",
+	}
+)
+
+func GraphInDOT(brVethsM map[string][]types.Node, vpairs, los []types.Node, bridgeIps map[string]*net.IP) (string, error) {
+
+	graphName := "G"
 	root := graph.NewEscape()
-	if err := root.SetName("G"); err != nil {
+	if err := root.SetName(graphName); err != nil {
 		return "", err
 	}
-	root.AddAttr("G", "layout", "fdp")    //nolint:errcheck
-	root.AddAttr("G", "splines", "ortho") //nolint:errcheck
-	root.AddAttr("G", "ratio", "0.7")     //nolint:errcheck
+	root.AddAttr(graphName, "layout", "fdp")    //nolint:errcheck
+	root.AddAttr(graphName, "splines", "ortho") //nolint:errcheck
+	root.AddAttr(graphName, "ratio", "0.7")     //nolint:errcheck
+
 	subGraphM := make(map[string]*graph.SubGraph)
 
-	for bridge, v := range m {
+	for bridge, v := range brVethsM {
 		labels := []string{bridge}
-		if ip, ok := bm[bridge]; ok {
+		if ip, ok := bridgeIps[bridge]; ok {
 			labels = append(labels, ip.String())
 		}
-		attr := map[string]string{
-			"label":    strings.Join(labels, "\\n"),
-			"nodesep":  "4.0",
-			"shape":    "octagon",
-			"style":    "filled",
-			"fontsize": "16pt",
-		}
-		if err := root.AddNode("G", bridge, attr); err != nil {
-			return "", err
+		attr := generateAttr(bridgeAttr, strings.Join(labels, "\\n"))
+
+		if err := root.AddNode(graphName, bridge, attr); err != nil {
+			return "", errors.Wrapf(err, "create bridge node %s", bridge)
 		}
 		for i, vp := range v {
 			// group by vp.NetNsName
@@ -45,47 +81,36 @@ func GraphInDOT(m map[string][]pkg.Node, vpairs, los []pkg.Node, bm map[string]*
 				sub, ok := subGraphM[vp.NetNsName]
 				if !ok {
 					// init subgraph for netns
-					sub = graph.NewSubGraph(fmt.Sprintf("cluster%s%c", bridge, 'A'+i))
+					sub = graph.NewSubGraph(fmt.Sprintf("cluster-%s%c", bridge, 'A'+i))
 					subGraphM[vp.NetNsName] = sub
-					attr := map[string]string{
-						"label":   fmt.Sprintf("NetNS\n%s", vp.NetNsName),
-						"style":   "filled",
-						"color":   "grey",
-						"nodesep": "4.0",
-						"shape":   "box",
-					}
 
-					if err := root.AddSubGraph("G", sub.Name, attr); err != nil {
-						return "", err
+					err := root.AddSubGraph(graphName, sub.Name, generateAttr(netNsAttr, fmt.Sprintf("NetNS\n%s", vp.NetNsName)))
+					if err != nil {
+						return "", errors.Wrapf(err, "create sub graph [%s] from %+v", sub, vp)
 					}
 				}
-				if err := root.AddNode("G", vp.Veth, map[string]string{
-					"label": vp.Label(),
-					"style": "filled",
-				}); err != nil {
-					return "", err
+				// host veth
+				err := root.AddNode(graphName, vp.Veth, generateAttr(nodeAttr, vp.Label()))
+				if err != nil {
+					return "", errors.Wrapf(err, "create veth node [%s]", vp.Veth)
 				}
-				if err := root.AddEdge(vp.Veth, bridge, false, map[string]string{
-					"color": "black",
-				}); err != nil {
-					return "", err
-				}
-				vethInNsName := fmt.Sprintf("%s_%d", vp.PeerNameInNetns, i)
-				if err := root.AddNode(sub.Name, vethInNsName, map[string]string{
-					"label": vp.PeerNameInNetns,
-					"shape": "oval",
-					"style": "filled",
-					"color": "#f0c674",
-				}); err != nil {
-					return "", err
-				}
-				if err := root.AddEdge(vp.Veth, vethInNsName, false, map[string]string{
-					"color":     "red",
-					"fontcolor": "red",
-				}); err != nil {
-					return "", err
+				// bridege <-> veth edge
+				err = root.AddEdge(vp.Veth, bridge, false, edgeAttr)
+				if err != nil {
+					return "", errors.Wrapf(err, "create edge between [%s] and [%s]", vp.Veth, bridge)
 				}
 
+				// netns veth
+				vethInNsName := fmt.Sprintf("%s_%d", bridge, i)
+				err = root.AddNode(sub.Name, vethInNsName, generateAttr(inNetNsAttr, vp.PeerNameInNetns))
+				if err != nil {
+					return "", errors.Wrapf(err, "create veth node [%s]", vethInNsName)
+				}
+				// veths edge
+				err = root.AddEdge(vp.Veth, vethInNsName, false, redEdgeAttr)
+				if err != nil {
+					return "", errors.Wrapf(err, "create edge between [%s] and [%s]", vp.Veth, vethInNsName)
+				}
 			} else {
 				attr := map[string]string{
 					"label": vp.Veth,
@@ -93,31 +118,25 @@ func GraphInDOT(m map[string][]pkg.Node, vpairs, los []pkg.Node, bm map[string]*
 				if vp.Orphaned {
 					attr["label"] += "\n(orphaned)"
 				}
-				if err := root.AddNode("G", vp.Veth, attr); err != nil {
-					return "", err
+				if err := root.AddNode(graphName, vp.Veth, attr); err != nil {
+					return "", errors.Wrapf(err, "create veth node [%s]", vp.Veth)
 				}
-				if err := root.AddEdge(vp.Veth, bridge, false, map[string]string{
-					"color": "black",
-				}); err != nil {
-					return "", err
+				if err := root.AddEdge(vp.Veth, bridge, false, edgeAttr); err != nil {
+					return "", errors.Wrapf(err, "create edge between [%s] and [%s]", vp.Veth, bridge)
 				}
 			}
 		}
 	}
+
+	// loopbacks
 	for _, lo := range los {
 		if lo.Status == "" {
 			continue
 		}
 		if sub, ok := subGraphM[lo.NetNsName]; ok {
-			if err := root.AddNode(sub.Name,
-				fmt.Sprintf("%s-lo", sub.Name),
-				map[string]string{
-					"label": lo.Label(),
-					"shape": "oval",
-					"style": "filled",
-					"color": "#f0c674",
-				}); err != nil {
-				return "", err
+			err := root.AddNode(sub.Name, fmt.Sprintf("%s-lo", sub.Name), generateAttr(loAttr, lo.Label()))
+			if err != nil {
+				return "", errors.Wrapf(err, "create loopback in netns [%s]", lo.NetNsName)
 			}
 		}
 	}
@@ -125,42 +144,33 @@ func GraphInDOT(m map[string][]pkg.Node, vpairs, los []pkg.Node, bm map[string]*
 	visited := make(map[string]struct{})
 	for _, vp := range vpairs {
 		if _, ok := visited[vp.Veth]; !ok {
-			root.AddNode("G", vp.Veth, //nolint:errcheck
-				map[string]string{
-					"label": vp.Veth,
-					"style": "filled",
-				})
+			root.AddNode(graphName, vp.Veth, generateAttr(nodeAttr, vp.Veth)) //nolint:errcheck
 			visited[vp.Veth] = struct{}{}
 		}
 		if _, ok := visited[vp.Peer]; !ok {
-			root.AddNode("G", vp.Peer, //nolint:errcheck
-				map[string]string{
-					"label": vp.Peer,
-					"style": "filled",
-				})
+			root.AddNode(graphName, vp.Peer, generateAttr(nodeAttr, vp.Peer)) //nolint:errcheck
 			visited[vp.Peer] = struct{}{}
 		}
-		root.AddEdge(vp.Veth, vp.Peer, false, //nolint:errcheck
-			map[string]string{
-				"color": "black",
-			})
+		root.AddEdge(vp.Veth, vp.Peer, false, generateAttr(edgeAttr, "")) //nolint:errcheck
 	}
-
 	return root.String(), nil
 }
 
-func GenImage(data []byte, oGraphName *string, gType string) (err error) {
-	graph, errG := graphviz.ParseBytes(data)
-	if errG != nil {
-		log.Fatal(errG)
-	}
+func GenImage(data []byte, oGraphName *string, gType string) (fn string, err error) {
+
 	g := graphviz.New()
-	fn := fmt.Sprintf("%s.%s", *oGraphName, gType)
-	f, errF := os.Create(fn)
-	if errF != nil {
-		log.Fatal(errF)
+
+	graph, err := graphviz.ParseBytes(data)
+	if err != nil {
+		return "", errors.Wrap(err, "parse dot bytes")
+	}
+	fn = fmt.Sprintf("%s.%s", *oGraphName, gType)
+	f, err := os.Create(fn)
+	if err != nil {
+		return fn, errors.Wrapf(err, "create file `%s`", fn)
 	}
 	defer f.Close()
+
 	switch gType {
 	case "jpg":
 		err = g.Render(graph, graphviz.JPG, f)
@@ -168,6 +178,22 @@ func GenImage(data []byte, oGraphName *string, gType string) (err error) {
 		err = g.Render(graph, graphviz.PNG, f)
 	case "svg":
 		err = g.Render(graph, graphviz.SVG, f)
+	default:
+		return fn, fmt.Errorf("unknown graph type %s", gType)
 	}
-	return
+	if err != nil {
+		return fn, errors.Wrap(err, "render image")
+	}
+	return fn, nil
+}
+
+func generateAttr(base map[string]string, lb string) map[string]string {
+	m := make(map[string]string)
+	for k, v := range base {
+		m[k] = v
+	}
+	if lb != "" {
+		m[label] = lb
+	}
+	return m
 }
